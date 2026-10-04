@@ -1,0 +1,6 @@
+.icon-button { display: grid; place-items: center; font-size: 0; }
+.icon-button::before { position: absolute; top: 8px; left: 7px; width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: 50%; content: ''; }
+.icon-button::after { position: absolute; top: 18px; left: 17px; width: 6px; height: 1.5px; transform: rotate(45deg); background: currentColor; content: ''; }
+.notification-button span { display: none; }
+.notification-button::before { position: absolute; top: 7px; left: 7px; width: 10px; height: 11px; border: 1.5px solid currentColor; border-radius: 6px 6px 3px 3px; content: ''; }
+.notification-button::after { position: absolute; top: 20px; left: 10px; width: 5px; height: 3px; border-top: 1.5px solid currentColor; border-radius: 50%; content: ''; }
