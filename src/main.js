@@ -5,7 +5,11 @@ import './workflow.css';
 import { createIcons, LayoutDashboard, CirclePlus, CalendarDays, WalletCards, ChartNoAxesCombined, CreditCard } from 'lucide';
 
 // ─── CONFIGURAÇÃO DA API ──────────────────────────────────────────────────────
-const API_URL = 'http://localhost:3333/api';
+// Em produção o frontend e a API rodam na mesma origem
+// Em desenvolvimento aponta para localhost:3333
+const API_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3333/api'
+  : '/api';
 
 function getToken() {
   return localStorage.getItem('gest-fin-token');
