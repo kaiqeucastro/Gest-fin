@@ -152,7 +152,7 @@ function loginPage() {
     </section>
     <section class="login-side">
       <div class="login-side-top">
-        <a class="brand" href="#login"><span class="brand-symbol">g</span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+        <a class="brand" href="#login"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
         <button class="theme-toggle" data-theme-toggle aria-label="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}" title="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}"><span aria-hidden="true"></span></button>
       </div>
       <div class="login-form-wrap">
@@ -189,7 +189,7 @@ function registerPage() {
     </section>
     <section class="login-side">
       <div class="login-side-top">
-        <a class="brand" href="#login"><span class="brand-symbol">g</span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+        <a class="brand" href="#login"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
         <button class="theme-toggle" data-theme-toggle aria-label="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}" title="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}"><span aria-hidden="true"></span></button>
       </div>
       <div class="login-form-wrap">
@@ -226,7 +226,7 @@ function forgotPage() {
     </section>
     <section class="login-side">
       <div class="login-side-top">
-        <a class="brand" href="#login"><span class="brand-symbol">g</span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+        <a class="brand" href="#login"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
         <button class="theme-toggle" data-theme-toggle aria-label="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}" title="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}"><span aria-hidden="true"></span></button>
       </div>
       <div class="login-form-wrap">
@@ -253,7 +253,84 @@ function shell(content) {
   const items = [['overview', 'Visao geral', '01'], ['new', 'Novo lancamento', '02'], ['bills', 'Contas a pagar', '03'], ['income', 'Receitas', '04'], ['reports', 'Relatorios', '05']];
   const userName = state.user?.name || 'Usuario';
   const userInitials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  return `<div class="layout"><aside class="sidebar"><a class="brand" href="#overview" aria-label="Gest-fin, inicio"><span class="brand-symbol">g</span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a><div class="side-label">MENU PRINCIPAL</div><nav class="side-nav" aria-label="Navegacao principal">${items.map(([key, label, number]) => `<button class="nav-item ${state.page === key ? 'active' : ''}" data-page="${key}"><span class="nav-number">${number}</span><span>${label}</span>${state.page === key ? '<i></i>' : ''}</button>`).join('')}</nav><div class="sidebar-bottom"><div class="sidebar-note"><span class="note-dot"></span><span>Dados salvos no<br />banco de dados local.</span></div><div class="profile"><div class="avatar">${safe(userInitials)}</div><span class="profile-identity"><strong>${safe(userName)}</strong><small>${safe(state.user?.email || '')}</small></span><button class="profile-more" data-account-menu aria-label="Abrir menu da conta" aria-expanded="false" title="Opcoes da conta">...</button><div class="account-menu" hidden><span class="account-menu-label">DADOS FINANCEIROS</span><button data-export="csv">Exportar CSV</button><button data-export="json">Exportar JSON</button><hr /><button class="logout-action" data-logout>Sair da conta</button></div></div></div></aside><main class="main-area"><header class="topbar"><div><span class="top-date">${new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</span><span class="breadcrumb">Painel <b>/</b> ${pageName(state.page)}</span></div><div class="top-actions"><button class="icon-button search-toggle" aria-label="Buscar lancamentos" title="Buscar">-</button><button class="notification-button" aria-label="Notificacoes" title="Notificacoes"><span>-</span><i></i></button><button class="top-avatar" aria-label="Perfil">${safe(userInitials)}</button></div></header><div class="page-content">${content}</div></main></div>`;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+
+  const navItems = items.map(([key, label, number]) => `<button class="nav-item ${state.page === key ? 'active' : ''}" data-page="${key}"><span class="nav-number">${number}</span><span>${label}</span>${state.page === key ? '<i></i>' : ''}</button>`).join('');
+
+  return `<div class="layout">
+
+    <!-- ── Mobile topbar + drawer ── -->
+    <div class="mobile-topbar">
+      <a class="brand" href="#overview" aria-label="Gest-fin, inicio">
+        <span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span>
+        <span>gest-fin<small>FINANCAS EM FOCO</small></span>
+      </a>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="theme-toggle" data-theme-toggle aria-label="${isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}"><span aria-hidden="true"></span></button>
+        <button class="hamburger" id="hamburger-btn" aria-label="Abrir menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+    <div class="mobile-nav-overlay" id="mobile-overlay"></div>
+    <nav class="mobile-nav-drawer" id="mobile-drawer" aria-label="Menu principal">
+      <div class="mobile-nav-header">
+        <a class="brand" href="#overview"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+        <button class="mobile-nav-close" id="mobile-close" aria-label="Fechar menu">✕</button>
+      </div>
+      <div class="mobile-nav-items" id="mobile-nav-items">
+        ${navItems}
+      </div>
+      <div class="mobile-nav-footer">
+        <div class="mobile-profile">
+          <div class="avatar">${safe(userInitials)}</div>
+          <div class="mobile-profile-info">
+            <strong>${safe(userName)}</strong>
+            <small>${safe(state.user?.email || '')}</small>
+          </div>
+        </div>
+        <button class="mobile-logout" data-logout>Sair da conta</button>
+      </div>
+    </nav>
+
+    <!-- ── Desktop sidebar ── -->
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="Gest-fin, inicio"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+      <div class="side-label">MENU PRINCIPAL</div>
+      <nav class="side-nav" aria-label="Navegacao principal">${navItems}</nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="note-dot"></span><span>Dados salvos no<br />banco de dados local.</span></div>
+        <div class="profile">
+          <div class="avatar">${safe(userInitials)}</div>
+          <span class="profile-identity"><strong>${safe(userName)}</strong><small>${safe(state.user?.email || '')}</small></span>
+          <button class="profile-more" data-account-menu aria-label="Abrir menu da conta" aria-expanded="false" title="Opcoes da conta">...</button>
+          <div class="account-menu" hidden>
+            <span class="account-menu-label">DADOS FINANCEIROS</span>
+            <button data-export="csv">Exportar CSV</button>
+            <button data-export="json">Exportar JSON</button>
+            <hr />
+            <button class="logout-action" data-logout>Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main area ── -->
+    <main class="main-area">
+      <header class="topbar">
+        <div>
+          <span class="top-date">${new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</span>
+          <span class="breadcrumb">Painel <b>/</b> ${pageName(state.page)}</span>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button search-toggle" aria-label="Buscar lancamentos" title="Buscar">-</button>
+          <button class="notification-button" aria-label="Notificacoes" title="Notificacoes"><span>-</span><i></i></button>
+          <button class="top-avatar" aria-label="Perfil">${safe(userInitials)}</button>
+        </div>
+      </header>
+      <div class="page-content">${content}</div>
+    </main>
+  </div>`;
 }
 
 function statCard(label, value, note, tone = 'neutral', icon = '-') {
@@ -301,7 +378,7 @@ function overviewPage() {
   const spending = total(expenses(current));
   const variance = priorSpending ? Math.round((spending - priorSpending) / priorSpending * 100) : 0;
   const dueSoon = upcomingBills().length;
-  const balance = total(incomes(current)) - spending;
+  const balance = total(incomes(current)) - total(expenses(current));
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date));
   return `${imageBanner('Clareza para decidir.<br />Controle para crescer.', 'Uma visao objetiva do seu fluxo financeiro, compromissos e oportunidades.', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85', 'PAINEL EXECUTIVO / OUTUBRO 2026')}<div class="section-heading"><div><span class="eyebrow">RESUMO DO PERIODO</span><h2>Visao geral</h2></div><button class="text-button" data-page="reports">Ver relatorios <span>-</span></button></div><div class="stats-grid">${statCard('Saldo disponivel', money(balance), '<span class="up">Atualizado agora</span>', 'positive', 'R$')}${statCard('Despesas do mes', money(spending), `${variance > 0 ? '<span class="down">+' : '<span class="up">'}${Math.abs(variance)}%</span> vs. mes anterior`, variance > 0 ? 'negative' : 'positive', '-')}${statCard('Receitas recebidas', money(total(incomes(current))), `<span class="up">${incomes(current).length} entradas</span> neste mes`, 'positive', '+')}${statCard('Contas em aberto', String(dueSoon).padStart(2, '0'), '<span class="neutral-tag">Proximos vencimentos</span>', 'neutral', '-')}</div><div class="dashboard-grid"><section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">FLUXO DE CAIXA</span><h3>Entradas e saidas</h3></div></div>${monthChart()}</section><section class="panel category-panel"><div class="panel-heading"><div><span class="eyebrow">ONDE SEU DINHEIRO VAI</span><h3>Consumo por categoria</h3></div></div>${categoryBreakdown()}</section></div><div class="dashboard-grid lower-grid"><section class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow">MOVIMENTACOES</span><h3>Recentes</h3></div><button class="text-button" data-page="new">Novo lancamento <span>+</span></button></div><div class="table-wrap"><table><thead><tr><th>DESCRICAO</th><th>CATEGORIA</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead><tbody>${transactionRows(recent, 5)}</tbody></table></div></section><section class="panel due-panel"><div class="panel-heading"><div><span class="eyebrow">AGENDA FINANCEIRA</span><h3>Proximos vencimentos</h3></div><button class="text-button" data-page="bills">Ver todas <span>-</span></button></div><div class="due-list">${billRows(upcomingBills(3), true)}</div></section></div>`;
 }
@@ -457,6 +534,28 @@ function showAuthMsg(id, text, type = 'error') {
 // ─── EVENTOS ──────────────────────────────────────────────────────────────────
 
 app.addEventListener('click', async (event) => {
+  // ── Hamburguer mobile ──
+  const hamburger = document.getElementById('hamburger-btn');
+  const drawer = document.getElementById('mobile-drawer');
+  const overlay = document.getElementById('mobile-overlay');
+
+  function openDrawer() {
+    drawer?.classList.add('open');
+    overlay?.classList.add('open');
+    hamburger?.classList.add('open');
+    hamburger?.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    drawer?.classList.remove('open');
+    overlay?.classList.remove('open');
+    hamburger?.classList.remove('open');
+    hamburger?.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  if (event.target.closest('#hamburger-btn')) { openDrawer(); return; }
+  if (event.target.closest('#mobile-close') || event.target.closest('#mobile-overlay')) { closeDrawer(); return; }
   if (event.target.closest('[data-theme-toggle]')) {
     const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = nextTheme;
@@ -513,6 +612,11 @@ app.addEventListener('click', async (event) => {
   const pageButton = event.target.closest('[data-page]');
   if (pageButton) {
     state.page = pageButton.dataset.page;
+    // Fecha drawer mobile ao navegar
+    document.getElementById('mobile-drawer')?.classList.remove('open');
+    document.getElementById('mobile-overlay')?.classList.remove('open');
+    document.getElementById('hamburger-btn')?.classList.remove('open');
+    document.body.style.overflow = '';
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
