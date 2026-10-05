@@ -7,15 +7,17 @@ const FIXED_USERS = [
   { id: 'user-demo',   name: 'Usuário Demo',    email: 'demo@gestfin.com',   password: 'demo123'   },
 ];
 
-export function seedUsers() {
-  console.log('✅ Usuários disponíveis:');
+export async function seedUsers() {
+  console.log('✅ Verificando usuários padrão...');
   for (const user of FIXED_USERS) {
-    const existing = db.get('SELECT id FROM users WHERE id = ?', [user.id]);
+    const existing = await db.get('SELECT id FROM users WHERE id = $1', [user.id]);
     if (!existing) {
       const hash = bcrypt.hashSync(user.password, 10);
-      db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)',
-        [user.id, user.name, user.email, hash]);
+      await db.run(
+        'INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)',
+        [user.id, user.name, user.email, hash]
+      );
+      console.log(`   + ${user.email} criado`);
     }
-    console.log(`   • ${user.email} / ${user.password}`);
   }
 }

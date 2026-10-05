@@ -14,29 +14,24 @@ const isProd = process.env.NODE_ENV === 'production';
 app.use(cors());
 app.use(express.json());
 
-// Rotas da API
 app.use('/api', routes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Em produção, serve o frontend buildado
 if (isProd) {
   const distPath = join(__dirname, '..', 'dist');
   app.use(express.static(distPath));
-  // Todas as rotas não-API retornam o index.html (SPA)
-  app.get('*', (_req, res) => {
-    res.sendFile(join(distPath, 'index.html'));
-  });
+  app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')));
 }
 
-// Inicializa o banco antes de aceitar conexões
-initDatabase().then(() => {
-  seedUsers();
-  app.listen(PORT, () => {
-    console.log(`\n🚀 Gest-fin API rodando em http://localhost:${PORT}`);
-    console.log(`   Modo: ${isProd ? 'produção' : 'desenvolvimento'}`);
-    console.log(`   Banco de dados: server/gest-fin.db\n`);
+initDatabase()
+  .then(() => seedUsers())
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Gest-fin rodando em http://localhost:${PORT}`);
+      console.log(`   Modo: ${isProd ? 'produção' : 'desenvolvimento'}\n`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Erro ao inicializar:', err);
+    process.exit(1);
   });
-}).catch((err) => {
-  console.error('❌ Erro ao inicializar banco:', err);
-  process.exit(1);
-});
