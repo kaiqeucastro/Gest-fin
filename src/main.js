@@ -297,12 +297,17 @@ function shell(content) {
     </nav>` : ''}
 
     <!-- ── Desktop sidebar ── -->
-    <aside class="sidebar">
-      <a class="brand" href="#overview" aria-label="Gest-fin, inicio"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+    <aside class="sidebar" id="main-sidebar">
+      <div class="sidebar-header">
+        <a class="brand" href="#overview" aria-label="Gest-fin, inicio"><span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span><span>gest-fin<small>FINANCAS EM FOCO</small></span></a>
+        <button class="sidebar-collapse-btn" id="sidebar-toggle" aria-label="Recolher menu" title="Recolher menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19l-7-7 7-7"/><path d="M19 19l-7-7 7-7"/></svg>
+        </button>
+      </div>
       <div class="side-label">MENU PRINCIPAL</div>
       <nav class="side-nav" aria-label="Navegacao principal">${navItems}</nav>
       <div class="sidebar-bottom">
-        <div class="sidebar-note"><span class="note-dot"></span><span>Dados salvos no<br />banco de dados local.</span></div>
+        <div class="sidebar-note"><span class="note-dot"></span><span class="sidebar-note-text">Dados salvos no<br />Supabase (nuvem).</span></div>
         <div class="profile">
           <div class="avatar">${safe(userInitials)}</div>
           <span class="profile-identity"><strong>${safe(userName)}</strong><small>${safe(state.user?.email || '')}</small></span>
@@ -321,9 +326,14 @@ function shell(content) {
     <!-- ── Main area ── -->
     <main class="main-area">
       <header class="topbar">
-        <div>
-          <span class="top-date">${new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</span>
-          <span class="breadcrumb">Painel <b>/</b> ${pageName(state.page)}</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="sidebar-toggle-topbar" id="sidebar-toggle-top" aria-label="Mostrar/ocultar menu lateral" title="Mostrar/ocultar menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          </button>
+          <div>
+            <span class="top-date">${new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(today)}</span>
+            <span class="breadcrumb">Painel <b>/</b> ${pageName(state.page)}</span>
+          </div>
         </div>
         <div class="top-actions">
           <button class="icon-button search-toggle" aria-label="Buscar lancamentos" title="Buscar">-</button>
@@ -497,6 +507,13 @@ function render() {
   }
   const pages = { overview: overviewPage, new: newPage, bills: billsPage, income: incomePage, reports: reportsPage, cards: cardsPage };
   app.innerHTML = shell(pages[state.page]());
+
+  // Restaura estado da sidebar
+  const sidebarState = localStorage.getItem('gest-fin-sidebar');
+  if (sidebarState === 'collapsed') {
+    document.getElementById('main-sidebar')?.classList.add('collapsed');
+    document.querySelector('.layout')?.classList.add('sidebar-collapsed');
+  }
   if (state.page === 'new') enhanceTransactionForm();
   addNavigationIcons();
   app.querySelectorAll('table').forEach((table) => {
@@ -567,7 +584,15 @@ app.addEventListener('click', async (event) => {
     return;
   }
 
-  // Navegação entre telas de autenticação
+  // ── Toggle sidebar desktop ──
+  if (event.target.closest('#sidebar-toggle') || event.target.closest('#sidebar-toggle-top')) {
+    const sidebar = document.getElementById('main-sidebar');
+    const layout = document.querySelector('.layout');
+    const isCollapsed = sidebar?.classList.toggle('collapsed');
+    layout?.classList.toggle('sidebar-collapsed', isCollapsed);
+    localStorage.setItem('gest-fin-sidebar', isCollapsed ? 'collapsed' : 'open');
+    return;
+  }
   const authScreenBtn = event.target.closest('[data-auth-screen]');
   if (authScreenBtn) {
     state.authScreen = authScreenBtn.dataset.authScreen;

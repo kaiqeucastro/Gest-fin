@@ -153,3 +153,9 @@
 :root[data-theme="dark"] .mobile-nav-close { background: #1a2f22; color: #a0b8a8; }
 :root[data-theme="dark"] .mobile-logout { background: #0e1f18; border-color: #2b3f32; color: #e07060; }
 :root[data-theme="dark"] .hamburger span { background: #c8d8cc; }
+
+/* Sidebar collapse button dark mode */
+:root[data-theme="dark"] .sidebar-collapse-btn { background: #1a2f22; border-color: #2b3f32; color: #8aaa96; }
+:root[data-theme="dark"] .sidebar-collapse-btn:hover { background: #243d2c; color: #aeceba; }
+:root[data-theme="dark"] .sidebar-toggle-topbar { color: #8aaa96; }
+:root[data-theme="dark"] .sidebar-toggle-topbar:hover { background: #1a2f22; color: #aeceba; }
