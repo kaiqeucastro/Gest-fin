@@ -257,9 +257,12 @@ function shell(content) {
 
   const navItems = items.map(([key, label, number]) => `<button class="nav-item ${state.page === key ? 'active' : ''}" data-page="${key}"><span class="nav-number">${number}</span><span>${label}</span>${state.page === key ? '<i></i>' : ''}</button>`).join('');
 
+  const isMobile = window.innerWidth <= 680;
+
   return `<div class="layout">
 
-    <!-- ── Mobile topbar + drawer (só renderiza no mobile) ── -->
+    ${isMobile ? `
+    <!-- ── Mobile topbar + drawer ── -->
     <div class="mobile-topbar">
       <a class="brand" href="#overview" aria-label="Gest-fin, inicio">
         <span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span>
@@ -291,7 +294,7 @@ function shell(content) {
         </div>
         <button class="mobile-logout" data-logout>Sair da conta</button>
       </div>
-    </nav>
+    </nav>` : ''}
 
     <!-- ── Desktop sidebar ── -->
     <aside class="sidebar">
