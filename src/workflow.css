@@ -145,7 +145,7 @@
   .bill-actions { gap: 2px; }
 }
 
-/* Dark mode — mobile nav */
+/* Dark mode — mobile nav (só visível em telas pequenas) */
 :root[data-theme="dark"] .mobile-topbar { background: rgba(10,24,18,.97); border-color: #1e3428; }
 :root[data-theme="dark"] .mobile-nav-drawer { background: #0e1f18; }
 :root[data-theme="dark"] .mobile-nav-header { border-color: #1e3428; }

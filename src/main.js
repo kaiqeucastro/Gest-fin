@@ -259,7 +259,7 @@ function shell(content) {
 
   return `<div class="layout">
 
-    <!-- ── Mobile topbar + drawer ── -->
+    <!-- ── Mobile topbar + drawer (só renderiza no mobile) ── -->
     <div class="mobile-topbar">
       <a class="brand" href="#overview" aria-label="Gest-fin, inicio">
         <span class="brand-symbol"><img src="/logo.svg" alt="Gest-fin" /></span>
