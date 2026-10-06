@@ -249,6 +249,67 @@ function forgotPage() {
   </main>`;
 }
 
+// ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
+
+function generateNotifications() {
+  const todayStr = today.toISOString().slice(0, 10);
+  const in3days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3).toISOString().slice(0, 10);
+  const in7days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString().slice(0, 10);
+
+  const pending = state.transactions.filter(t => t.type === 'expense' && t.status === 'pending');
+
+  const overdueItems   = pending.filter(t => t.date < todayStr);
+  const todayItems     = pending.filter(t => t.date === todayStr);
+  const in3Items       = pending.filter(t => t.date > todayStr && t.date <= in3days);
+  const in7Items       = pending.filter(t => t.date > in3days && t.date <= in7days);
+
+  if (!pending.length) {
+    return `<div class="notif-empty">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <p>Tudo em dia!<br/><small>Nenhuma conta pendente.</small></p>
+    </div>`;
+  }
+
+  let html = '';
+
+  if (overdueItems.length) {
+    html += `<div class="notif-section-label notif-overdue">VENCIDAS</div>`;
+    html += overdueItems.map(t => notifItem(t, 'overdue',
+      `Conta vencida em ${new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'short' }).format(new Date(t.date + 'T12:00:00'))}`
+    )).join('');
+  }
+  if (todayItems.length) {
+    html += `<div class="notif-section-label notif-today">VENCE HOJE</div>`;
+    html += todayItems.map(t => notifItem(t, 'today', 'Vence hoje')).join('');
+  }
+  if (in3Items.length) {
+    html += `<div class="notif-section-label">PRÓXIMOS 3 DIAS</div>`;
+    html += in3Items.map(t => notifItem(t, 'soon',
+      `Vence em ${new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'short' }).format(new Date(t.date + 'T12:00:00'))}`
+    )).join('');
+  }
+  if (in7Items.length) {
+    html += `<div class="notif-section-label">ESTA SEMANA</div>`;
+    html += in7Items.map(t => notifItem(t, 'week',
+      `Vence em ${new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'short' }).format(new Date(t.date + 'T12:00:00'))}`
+    )).join('');
+  }
+
+  return html;
+}
+
+function notifItem(t, type, subtitle) {
+  const icons = { overdue: '🔴', today: '🟠', soon: '🟡', week: '🔵' };
+  return `<div class="notif-item" data-notif-pay="${safe(t.id)}">
+    <span class="notif-dot-type">${icons[type]}</span>
+    <div class="notif-item-info">
+      <strong>${safe(t.title)}</strong>
+      <small>${subtitle} · ${money(t.amount)}</small>
+    </div>
+    <button class="notif-pay-btn" data-paid="${safe(t.id)}" title="Marcar como pago">✓</button>
+  </div>`;
+}
+
 function shell(content) {
   const userName = state.user?.name || 'Usuario';
   const userInitials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
@@ -344,8 +405,48 @@ function shell(content) {
           </div>
         </div>
         <div class="top-actions">
-          <button class="icon-button search-toggle" aria-label="Buscar lancamentos" title="Buscar">-</button>
-          <button class="notification-button" aria-label="Notificacoes" title="Notificacoes"><span>-</span><i></i></button>
+
+          <!-- Busca -->
+          <div class="search-wrap" id="search-wrap">
+            <button class="topbar-btn search-toggle" id="search-toggle" aria-label="Buscar" title="Buscar lançamentos">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </button>
+            <div class="search-panel" id="search-panel" hidden>
+              <div class="search-input-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input class="search-input" id="search-input" type="text" placeholder="Buscar lançamentos..." autocomplete="off" />
+                <button class="search-clear" id="search-clear" aria-label="Limpar busca">✕</button>
+              </div>
+              <div class="search-results" id="search-results"></div>
+            </div>
+          </div>
+
+          <!-- Notificações -->
+          <div class="notif-wrap" id="notif-wrap">
+            <button class="topbar-btn notif-toggle" id="notif-toggle" aria-label="Notificações" title="Notificações">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              ${(() => { const count = state.transactions.filter(t => t.status === 'pending' && t.type === 'expense').length; return count > 0 ? `<span class="notif-badge">${count > 9 ? '9+' : count}</span>` : ''; })()}
+            </button>
+            <div class="notif-panel" id="notif-panel" hidden>
+              <div class="notif-header">
+                <span>Notificações</span>
+                <button class="notif-mark-all" id="notif-mark-all">Marcar tudo como lido</button>
+              </div>
+              <div class="notif-list" id="notif-list">
+                ${generateNotifications()}
+              </div>
+            </div>
+          </div>
+
+          <!-- Tema -->
+          <button class="topbar-btn theme-btn" data-theme-toggle aria-label="${document.documentElement.dataset.theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}">
+            ${document.documentElement.dataset.theme === 'dark'
+              ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`
+              : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+            }
+          </button>
+
+          <!-- Avatar -->
           <button class="top-avatar" aria-label="Perfil">${safe(userInitials)}</button>
         </div>
       </header>
@@ -550,7 +651,47 @@ function showAuthMsg(id, text, type = 'error') {
 // ─── EVENTOS ──────────────────────────────────────────────────────────────────
 
 app.addEventListener('click', async (event) => {
-  // ── Hamburguer mobile ──
+  // ── Busca ──
+  if (event.target.closest('#search-toggle')) {
+    const panel = document.getElementById('search-panel');
+    const isHidden = panel.hidden;
+    panel.hidden = !isHidden;
+    // Fecha notificações se aberto
+    document.getElementById('notif-panel').hidden = true;
+    if (!panel.hidden) setTimeout(() => document.getElementById('search-input')?.focus(), 50);
+    return;
+  }
+  if (event.target.closest('#search-clear')) {
+    const input = document.getElementById('search-input');
+    input.value = '';
+    document.getElementById('search-results').innerHTML = '';
+    input.focus();
+    return;
+  }
+
+  // ── Notificações ──
+  if (event.target.closest('#notif-toggle')) {
+    const panel = document.getElementById('notif-panel');
+    panel.hidden = !panel.hidden;
+    // Fecha busca se aberto
+    document.getElementById('search-panel').hidden = true;
+    return;
+  }
+  if (event.target.closest('#notif-mark-all')) {
+    document.getElementById('notif-panel').hidden = true;
+    return;
+  }
+  if (event.target.closest('.notif-pay-btn')) {
+    const btn = event.target.closest('.notif-pay-btn');
+    await markPaid(btn.dataset.paid);
+    return;
+  }
+
+  // Fecha painéis ao clicar fora
+  if (!event.target.closest('#search-wrap') && !event.target.closest('#notif-wrap')) {
+    document.getElementById('search-panel')?.setAttribute('hidden', '');
+    document.getElementById('notif-panel')?.setAttribute('hidden', '');
+  }
   const hamburger = document.getElementById('hamburger-btn');
   const drawer = document.getElementById('mobile-drawer');
   const overlay = document.getElementById('mobile-overlay');
@@ -651,6 +792,34 @@ app.addEventListener('click', async (event) => {
     if (search) search.remove();
     else document.querySelector('.topbar').insertAdjacentHTML('beforeend', '<input class="quick-search" placeholder="Buscar lancamento..." aria-label="Buscar lancamento" />');
   }
+});
+
+app.addEventListener('input', (event) => {
+  if (event.target.id !== 'search-input') return;
+  const query = event.target.value.trim().toLowerCase();
+  const results = document.getElementById('search-results');
+  if (!query) { results.innerHTML = ''; return; }
+
+  const matches = state.transactions.filter(t =>
+    t.title.toLowerCase().includes(query) ||
+    t.category.toLowerCase().includes(query) ||
+    (t.account || '').toLowerCase().includes(query)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    results.innerHTML = `<div class="search-empty">Nenhum resultado para "<b>${safe(query)}</b>"</div>`;
+    return;
+  }
+
+  results.innerHTML = matches.map(t => `
+    <button class="search-result-item" data-page="${t.type === 'income' ? 'income' : 'bills'}">
+      <div class="search-result-info">
+        <strong>${safe(t.title)}</strong>
+        <small>${safe(t.category)} · ${new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'short' }).format(new Date(t.date + 'T12:00:00'))}</small>
+      </div>
+      <span class="search-result-amount ${t.type}">${t.type === 'income' ? '+' : '-'} ${money(t.amount)}</span>
+    </button>
+  `).join('');
 });
 
 app.addEventListener('change', (event) => {
