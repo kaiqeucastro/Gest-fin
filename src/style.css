@@ -9,12 +9,14 @@
 .sidebar-toggle-topbar{display:none;place-items:center;width:30px;height:30px;border:0;border-radius:5px;background:none;color:#7a847e;transition:background .15s,color .15s}
 .sidebar-toggle-topbar:hover{background:#f0f2ed;color:var(--green)}
 .sidebar.collapsed{width:62px;padding:20px 11px 18px;overflow:hidden}
+.sidebar.collapsed *{white-space:nowrap}
 .sidebar.collapsed .sidebar-header{justify-content:center}
 .sidebar.collapsed .sidebar-collapse-btn{transform:rotate(180deg)}
 .sidebar.collapsed .brand span,.sidebar.collapsed .side-label,.sidebar.collapsed .sidebar-note-text,.sidebar.collapsed .profile-identity,.sidebar.collapsed .profile-more,.sidebar.collapsed .account-menu{display:none}
 .sidebar.collapsed .brand{justify-content:center}
-.sidebar.collapsed .nav-item{justify-content:center;padding:0;min-height:43px}
+.sidebar.collapsed .nav-item{justify-content:center;padding:0;min-height:43px;overflow:hidden}
 .sidebar.collapsed .nav-item span:last-child{display:none}
+.sidebar.collapsed .nav-item > span:not(.nav-icon){display:none}
 .sidebar.collapsed .nav-item.active i{right:auto;left:50%;transform:translateX(-50%);width:18px;height:3px;bottom:0;top:auto;border-radius:2px 2px 0 0}
 .sidebar.collapsed .profile{justify-content:center}
 .sidebar.collapsed .nav-icon{width:18px;height:18px}
