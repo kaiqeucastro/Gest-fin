@@ -507,7 +507,7 @@ function overviewPage() {
 
 function billRows(items, compact = false) {
   if (!items.length) return '<div class="empty-state small-empty"><span class="empty-check">-</span><strong>Tudo em dia</strong><p>Nenhuma conta pendente por aqui.</p></div>';
-  return items.map((item) => `<article class="bill-row" data-transaction-id="${safe(item.id)}"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="bill-info"><strong>${safe(item.title)}</strong><small>${safe(item.category)} - ${safe(item.account || 'Conta principal')}</small></div><div class="bill-value"><strong>${money(item.amount)}</strong><small>${item.status === 'paid' ? 'Pago' : 'A vencer'}</small></div>${compact ? '' : `<div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : '<span class="status paid"><i></i>Pago</span>'}<button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir lancamento">-</button></div>`}</article>`).join('');
+  return items.map((item) => `<article class="bill-row" data-transaction-id="${safe(item.id)}"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="bill-info"><strong>${safe(item.title)}</strong><small>${safe(item.category)} - ${safe(item.account || 'Conta principal')}</small></div><div class="bill-value"><strong>${money(item.amount)}</strong><small>${item.status === 'paid' ? 'Pago' : 'A vencer'}</small></div>${compact ? '' : `<div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : '<span class="status paid"><i></i>Pago</span>'}<button class="edit-action" data-edit="${safe(item.id)}" aria-label="Editar ${safe(item.title)}" title="Editar">✎</button><button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir lancamento">-</button></div>`}</article>`).join('');
 }
 
 function newPage() {
@@ -541,13 +541,13 @@ function cardsPage() {
     const committed = total(openCharges);
     const utilization = card.limit ? Math.min(100, Math.round(committed / Number(card.limit) * 100)) : 0;
     const nextDue = [...openCharges].sort((a, b) => a.date.localeCompare(b.date))[0];
-    return `<article class="credit-card-card"><div class="credit-card-face card-tone-${index % 3}"><div class="card-face-top"><span>${safe(card.issuer)}</span><i data-lucide="credit-card"></i></div><span class="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;${safe(card.lastFour)}</span><div class="card-face-bottom"><span>${safe(card.name)}<small>CARTÃO DE CRÉDITO</small></span><span>CRÉDITO</span></div></div><div class="card-details"><div class="card-limit-label"><span>Limite comprometido</span><strong>${money(committed)} <small>de ${money(card.limit)}</small></strong></div><div class="limit-track"><i style="width:${utilization}%"></i></div><div class="card-stat-pair"><div><span>Fatura neste mês</span><strong>${money(currentInvoice)}</strong></div><div><span>Próximo vencimento</span><strong>${nextDue ? dateFormat.format(new Date(`${nextDue.date}T12:00:00`)) : 'Sem pendências'}</strong></div></div><p class="cycle-note">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</p></div></article>`;
+    return `<article class="credit-card-card"><div class="credit-card-face card-tone-${index % 3}"><div class="card-face-top"><span>${safe(card.issuer)}</span><i data-lucide="credit-card"></i></div><span class="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;${safe(card.lastFour)}</span><div class="card-face-bottom"><span>${safe(card.name)}<small>CARTÃO DE CRÉDITO</small></span><span>CRÉDITO</span></div></div><div class="card-details"><div class="card-limit-label"><span>Limite comprometido</span><strong>${money(committed)} <small>de ${money(card.limit)}</small></strong></div><div class="limit-track"><i style="width:${utilization}%"></i></div><div class="card-stat-pair"><div><span>Fatura neste mês</span><strong>${money(currentInvoice)}</strong></div><div><span>Próximo vencimento</span><strong>${nextDue ? dateFormat.format(new Date(`${nextDue.date}T12:00:00`)) : 'Sem pendências'}</strong></div></div><p class="cycle-note">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</p><div class="card-actions"><button class="edit-card-btn" data-edit-card="${safe(card.id)}" title="Editar cartão">✎ Editar</button></div></div></article>`;
   }).join('');
   const installments = state.transactions.filter((item) => item.paymentMethod === 'credit').sort((a, b) => a.date.localeCompare(b.date));
   const installmentRows = installments.map((item) => {
     const card = state.cards.find((entry) => entry.id === item.cardId);
     const installmentLabel = item.installmentCount > 1 ? `Parcela ${item.installmentNumber} de ${item.installmentCount}` : 'À vista';
-    return `<article class="installment-row"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="installment-info"><strong>${safe(item.title)}</strong><small>${safe(card?.name || 'Cartão removido')} · ${installmentLabel}</small></div><div class="installment-value"><strong>${money(item.amount)}</strong><small class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Pago' : 'Em aberto'}</small></div><div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : ''}<button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir compra">-</button></div></article>`;
+    return `<article class="installment-row"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="installment-info"><strong>${safe(item.title)}</strong><small>${safe(card?.name || 'Cartão removido')} · ${installmentLabel}</small></div><div class="installment-value"><strong>${money(item.amount)}</strong><small class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Pago' : 'Em aberto'}</small></div><div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : ''}<button class="edit-action" data-edit="${safe(item.id)}" title="Editar">✎</button><button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir compra">-</button></div></article>`;
   }).join('');
   return `${imageBanner('Cartões sob controle.<br />Parcelas sem surpresa.', 'Acompanhe faturas, limite comprometido e vencimentos de cada compra.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'CRÉDITO / CARTÕES')}<div class="section-heading"><div><span class="eyebrow">CARTEIRA DE CRÉDITO</span><h2>Cartões</h2></div><button class="primary-button" data-toggle-card-form>+ Adicionar cartão</button></div><form id="card-form" class="panel card-form" hidden><div class="panel-heading"><div><span class="eyebrow">NOVO MEIO DE PAGAMENTO</span><h3>Cadastrar cartão</h3></div></div><div class="form-grid"><label class="field"><span>Nome do cartão</span><input name="cardName" maxlength="40" placeholder="Ex.: Cartão principal" required /></label><label class="field"><span>Emissor</span><input name="issuer" maxlength="30" placeholder="Ex.: Banco Horizonte" required /></label><label class="field"><span>Quatro últimos dígitos</span><input name="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="1234" required /></label><label class="field"><span>Limite total</span><input name="limit" type="number" min="1" step="0.01" placeholder="10000" required /></label><label class="field"><span>Dia de fechamento</span><input name="closingDay" type="number" min="1" max="28" value="20" required /></label><label class="field"><span>Dia do vencimento</span><input name="dueDay" type="number" min="1" max="28" value="5" required /></label></div><div class="form-footer"><span>Datas de fechamento e vencimento usadas para projetar as parcelas.</span><button class="primary-button" type="submit">Salvar cartão</button></div></form><div class="credit-card-grid">${cards || '<div class="panel empty-note">Cadastre um cartão para controlar suas compras.</div>'}</div><section class="panel installments-panel"><div class="panel-heading"><div><span class="eyebrow">FATURAS FUTURAS</span><h3>Compras e parcelas</h3></div><span class="period-label">${installments.length} lançamentos</span></div><div class="installment-list">${installmentRows || '<div class="empty-state small-empty"><span class="empty-check">-</span><strong>Nenhuma compra no crédito</strong><p>Selecione cartão de crédito ao criar um lançamento.</p></div>'}</div></section>`;
 }
@@ -591,6 +591,98 @@ async function saveCardPurchase(data) {
   await Promise.all(transactions.map(saveTransaction));
 }
 
+// ─── MODAIS DE EDIÇÃO ─────────────────────────────────────────────────────────
+
+function openEditModal(id) {
+  const t = state.transactions.find(item => item.id === id);
+  if (!t) return;
+  closeModal();
+  const catOptions = (type) => categories[type].map(c => `<option${c === t.category ? ' selected' : ''}>${c}</option>`).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'edit-modal';
+  modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Editar lançamento</h3>
+        <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+      </div>
+      <form id="edit-transaction-form" class="modal-form">
+        <input type="hidden" name="id" value="${safe(t.id)}" />
+        <div class="form-type">
+          <label class="type-choice"><input type="radio" name="type" value="expense"${t.type === 'expense' ? ' checked' : ''}/><span>Saida</span></label>
+          <label class="type-choice"><input type="radio" name="type" value="income"${t.type === 'income' ? ' checked' : ''}/><span>Entrada</span></label>
+        </div>
+        <div class="form-grid">
+          <label class="field field-wide"><span>Descricao</span><input name="title" required maxlength="80" value="${safe(t.title)}" /></label>
+          <label class="field"><span>Valor</span><div class="currency-input"><b>R$</b><input name="amount" type="number" min="0.01" step="0.01" required value="${t.amount}" /></div></label>
+          <label class="field"><span>Categoria</span><select name="category" required>${catOptions(t.type)}</select></label>
+          <label class="field"><span>Data</span><input name="date" type="date" required value="${t.date}" /></label>
+          <label class="field"><span>Conta</span><select name="account">
+            <option${t.account === 'Conta principal' ? ' selected' : ''}>Conta principal</option>
+            <option${t.account === 'Cartao corporativo' ? ' selected' : ''}>Cartao corporativo</option>
+            <option${t.account === 'Reserva' ? ' selected' : ''}>Reserva</option>
+          </select></label>
+          <label class="field"><span>Status</span><select name="status">
+            <option value="pending"${t.status === 'pending' ? ' selected' : ''}>Pendente</option>
+            <option value="paid"${t.status === 'paid' ? ' selected' : ''}>Pago / recebido</option>
+          </select></label>
+          <label class="field field-wide"><span>Observacao <small>OPCIONAL</small></span><textarea name="note" rows="2">${safe(t.note || '')}</textarea></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-cancel" id="modal-close-btn">Cancelar</button>
+          <button type="submit" class="primary-button">Salvar alterações</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('[name="type"]')?.addEventListener('change', (e) => {
+    modal.querySelector('[name="category"]').innerHTML = categories[e.target.value].map(c => `<option>${c}</option>`).join('');
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('#modal-close') || e.target.closest('#modal-close-btn')) closeModal();
+  });
+}
+
+function openEditCardModal(id) {
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return;
+  closeModal();
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'edit-modal';
+  modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Editar cartão</h3>
+        <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+      </div>
+      <form id="edit-card-form" class="modal-form">
+        <input type="hidden" name="id" value="${safe(card.id)}" />
+        <div class="form-grid">
+          <label class="field"><span>Nome do cartão</span><input name="cardName" maxlength="40" required value="${safe(card.name)}" /></label>
+          <label class="field"><span>Emissor</span><input name="issuer" maxlength="30" required value="${safe(card.issuer)}" /></label>
+          <label class="field"><span>Últimos 4 dígitos</span><input name="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required value="${safe(card.lastFour)}" /></label>
+          <label class="field"><span>Limite total</span><input name="limit" type="number" min="1" step="0.01" required value="${card.limit}" /></label>
+          <label class="field"><span>Dia de fechamento</span><input name="closingDay" type="number" min="1" max="28" required value="${card.closingDay}" /></label>
+          <label class="field"><span>Dia do vencimento</span><input name="dueDay" type="number" min="1" max="28" required value="${card.dueDay}" /></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-cancel" id="modal-close-btn">Cancelar</button>
+          <button type="submit" class="primary-button">Salvar alterações</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('#modal-close') || e.target.closest('#modal-close-btn')) closeModal();
+  });
+}
+
+function closeModal() {
+  document.getElementById('edit-modal')?.remove();
+}
+
 function addNavigationIcons() {
   createIcons({ icons: { LayoutDashboard, CirclePlus, CalendarDays, WalletCards, ChartNoAxesCombined, CreditCard }, attrs: { 'stroke-width': 1.8 } });
 }
@@ -619,7 +711,10 @@ function render() {
     table.querySelector('thead tr')?.insertAdjacentHTML('beforeend', '<th class="align-right">ACAO</th>');
     rows.forEach((row) => {
       const transaction = state.transactions.find((item) => item.id === row.dataset.transactionId);
-      row.insertAdjacentHTML('beforeend', `<td class="table-action"><button class="delete-action" data-delete="${safe(row.dataset.transactionId)}" aria-label="Excluir ${safe(transaction?.title || 'lancamento')}" title="Excluir lancamento">-</button></td>`);
+      row.insertAdjacentHTML('beforeend', `<td class="table-action">
+        <button class="edit-action" data-edit="${safe(row.dataset.transactionId)}" aria-label="Editar ${safe(transaction?.title || 'lancamento')}" title="Editar">✎</button>
+        <button class="delete-action" data-delete="${safe(row.dataset.transactionId)}" aria-label="Excluir ${safe(transaction?.title || 'lancamento')}" title="Excluir">-</button>
+      </td>`);
     });
   });
   const themeButton = document.createElement('button');
@@ -765,6 +860,14 @@ app.addEventListener('click', async (event) => {
     if (!form.hidden) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+  // ── Editar lançamento ──
+  const editBtn = event.target.closest('[data-edit]');
+  if (editBtn) { openEditModal(editBtn.dataset.edit); return; }
+
+  // ── Editar cartão ──
+  const editCardBtn = event.target.closest('[data-edit-card]');
+  if (editCardBtn) { openEditCardModal(editCardBtn.dataset.editCard); return; }
+
   const deleteButton = event.target.closest('[data-delete]');
   if (deleteButton) {
     const transaction = state.transactions.find((item) => item.id === deleteButton.dataset.delete);
@@ -837,6 +940,49 @@ app.addEventListener('change', (event) => {
 });
 
 app.addEventListener('submit', async (event) => {
+  // ── Editar lançamento ──
+  if (event.target.id === 'edit-transaction-form') {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const original = state.transactions.find(t => t.id === data.get('id'));
+    if (!original) return;
+    const updated = {
+      ...original,
+      title: data.get('title').trim(),
+      amount: Number(data.get('amount')),
+      type: data.get('type'),
+      category: data.get('category'),
+      date: data.get('date'),
+      status: data.get('status'),
+      account: data.get('account'),
+      note: data.get('note').trim(),
+    };
+    await saveTransaction(updated);
+    closeModal();
+    await refresh();
+    return;
+  }
+
+  // ── Editar cartão ──
+  if (event.target.id === 'edit-card-form') {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const original = state.cards.find(c => c.id === data.get('id'));
+    if (!original) return;
+    await saveCard({
+      ...original,
+      name: data.get('cardName').trim(),
+      issuer: data.get('issuer').trim(),
+      lastFour: data.get('lastFour'),
+      limit: Number(data.get('limit')),
+      closingDay: Number(data.get('closingDay')),
+      dueDay: Number(data.get('dueDay')),
+    });
+    closeModal();
+    await refresh();
+    return;
+  }
+
   // ── Login ──
   if (event.target.id === 'login-form') {
     event.preventDefault();
