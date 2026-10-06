@@ -261,3 +261,9 @@
 :root[data-theme="dark"] .modal-cancel{background:#142618;border-color:#2b3f32;color:#8aaa96}
 :root[data-theme="dark"] .edit-action,:root[data-theme="dark"] .edit-card-btn{background:#142618;border-color:#2b3f32;color:#6aaa82}
 :root[data-theme="dark"] .card-actions{border-color:#1e3428}
+
+/* Fatura do cartão */
+.invoice-pending{display:block;margin-top:3px;color:#c46f5c;font-size:8px;font-weight:600}
+.invoice-paid{display:block;margin-top:3px;color:#568268;font-size:8px;font-weight:600}
+:root[data-theme="dark"] .invoice-pending{color:#e07060}
+:root[data-theme="dark"] .invoice-paid{color:#6aaa82}
