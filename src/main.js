@@ -717,15 +717,6 @@ function render() {
       </td>`);
     });
   });
-  const themeButton = document.createElement('button');
-  const isDark = document.documentElement.dataset.theme === 'dark';
-  themeButton.type = 'button';
-  themeButton.className = 'theme-toggle';
-  themeButton.dataset.themeToggle = '';
-  themeButton.setAttribute('aria-label', isDark ? 'Ativar tema claro' : 'Ativar tema escuro');
-  themeButton.title = isDark ? 'Ativar tema claro' : 'Ativar tema escuro';
-  themeButton.innerHTML = '<span aria-hidden="true"></span>';
-  document.querySelector('.top-avatar').before(themeButton);
 }
 
 async function refresh() {
