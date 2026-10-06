@@ -267,3 +267,16 @@
 .invoice-paid{display:block;margin-top:3px;color:#568268;font-size:8px;font-weight:600}
 :root[data-theme="dark"] .invoice-pending{color:#e07060}
 :root[data-theme="dark"] .invoice-paid{color:#6aaa82}
+
+/* Botão apagar cartão */
+.delete-card-btn{min-height:27px;padding:0 10px;border:1px solid #f0d4cc;border-radius:3px;background:#fdf5f3;color:#c46f5c;font-size:8px;font-weight:700;transition:background .12s}
+.delete-card-btn:hover{background:#fce8e3;border-color:#e0a898}
+:root[data-theme="dark"] .delete-card-btn{background:#2a1510;border-color:#5a2a20;color:#e07060}
+:root[data-theme="dark"] .delete-card-btn:hover{background:#3a1c14}
+
+/* Card actions responsivo */
+.card-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #edf0f2}
+@media(max-width:680px){
+  .card-actions{justify-content:stretch}
+  .edit-card-btn,.delete-card-btn{flex:1;justify-content:center;min-height:34px;font-size:10px}
+}

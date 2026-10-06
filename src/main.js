@@ -97,6 +97,9 @@ async function saveCard(card) {
 async function deleteTransaction(id) {
   return apiFetch(`/transactions/${id}`, { method: 'DELETE' });
 }
+async function deleteCard(id) {
+  return apiFetch(`/cards/${id}`, { method: 'DELETE' });
+}
 
 function exportTransactions(format) {
   const filename = `gest-fin-lancamentos-${isoDate(today.getDate())}`;
@@ -546,7 +549,7 @@ function cardsPage() {
     const committed = total(openCharges);
     const utilization = card.limit ? Math.min(100, Math.round(committed / Number(card.limit) * 100)) : 0;
     const nextDue = [...openCharges].sort((a, b) => a.date.localeCompare(b.date))[0];
-    return `<article class="credit-card-card"><div class="credit-card-face card-tone-${index % 3}"><div class="card-face-top"><span>${safe(card.issuer)}</span><i data-lucide="credit-card"></i></div><span class="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;${safe(card.lastFour)}</span><div class="card-face-bottom"><span>${safe(card.name)}<small>CARTÃO DE CRÉDITO</small></span><span>CRÉDITO</span></div></div><div class="card-details"><div class="card-limit-label"><span>Limite comprometido</span><strong>${money(committed)} <small>de ${money(card.limit)}</small></strong></div><div class="limit-track"><i style="width:${utilization}%"></i></div><div class="card-stat-pair"><div><span>Fatura neste mês</span><strong>${money(currentInvoice)}</strong>${invoicePending > 0 ? `<small class="invoice-pending">A pagar: ${money(invoicePending)}</small>` : `<small class="invoice-paid">Fatura paga</small>`}</div><div><span>Próximo vencimento</span><strong>${nextDue ? dateFormat.format(new Date(`${nextDue.date}T12:00:00`)) : 'Sem pendências'}</strong></div></div><p class="cycle-note">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</p><div class="card-actions"><button class="edit-card-btn" data-edit-card="${safe(card.id)}" title="Editar cartão">✎ Editar</button></div></div></article>`;
+    return `<article class="credit-card-card"><div class="credit-card-face card-tone-${index % 3}"><div class="card-face-top"><span>${safe(card.issuer)}</span><i data-lucide="credit-card"></i></div><span class="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;${safe(card.lastFour)}</span><div class="card-face-bottom"><span>${safe(card.name)}<small>CARTÃO DE CRÉDITO</small></span><span>CRÉDITO</span></div></div><div class="card-details"><div class="card-limit-label"><span>Limite comprometido</span><strong>${money(committed)} <small>de ${money(card.limit)}</small></strong></div><div class="limit-track"><i style="width:${utilization}%"></i></div><div class="card-stat-pair"><div><span>Fatura neste mês</span><strong>${money(currentInvoice)}</strong>${invoicePending > 0 ? `<small class="invoice-pending">A pagar: ${money(invoicePending)}</small>` : `<small class="invoice-paid">Fatura paga</small>`}</div><div><span>Próximo vencimento</span><strong>${nextDue ? dateFormat.format(new Date(`${nextDue.date}T12:00:00`)) : 'Sem pendências'}</strong></div></div><p class="cycle-note">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</p><div class="card-actions"><button class="edit-card-btn" data-edit-card="${safe(card.id)}" title="Editar cartão">✎ Editar</button><button class="delete-card-btn" data-delete-card="${safe(card.id)}" title="Apagar cartão">✕ Apagar</button></div></div></article>`;
   }).join('');
   const installments = state.transactions.filter((item) => item.paymentMethod === 'credit').sort((a, b) => a.date.localeCompare(b.date));
   const installmentRows = installments.map((item) => {
@@ -863,6 +866,22 @@ app.addEventListener('click', async (event) => {
   // ── Editar cartão ──
   const editCardBtn = event.target.closest('[data-edit-card]');
   if (editCardBtn) { openEditCardModal(editCardBtn.dataset.editCard); return; }
+
+  // ── Apagar cartão ──
+  const deleteCardBtn = event.target.closest('[data-delete-card]');
+  if (deleteCardBtn) {
+    const card = state.cards.find(c => c.id === deleteCardBtn.dataset.deleteCard);
+    if (!card) return;
+    const hasTransactions = state.transactions.some(t => t.cardId === card.id);
+    const msg = hasTransactions
+      ? `Apagar o cartão "${card.name}"?\n\nAtenção: todas as ${state.transactions.filter(t => t.cardId === card.id).length} transações vinculadas a este cartão também serão apagadas.`
+      : `Apagar o cartão "${card.name}"?`;
+    if (window.confirm(msg)) {
+      await deleteCard(card.id);
+      await refresh();
+    }
+    return;
+  }
 
   const deleteButton = event.target.closest('[data-delete]');
   if (deleteButton) {
