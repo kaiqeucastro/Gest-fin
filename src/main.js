@@ -250,12 +250,20 @@ function forgotPage() {
 }
 
 function shell(content) {
-  const items = [['overview', 'Visao geral', '01'], ['new', 'Novo lancamento', '02'], ['bills', 'Contas a pagar', '03'], ['income', 'Receitas', '04'], ['reports', 'Relatorios', '05']];
   const userName = state.user?.name || 'Usuario';
   const userInitials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const isDark = document.documentElement.dataset.theme === 'dark';
 
-  const navItems = items.map(([key, label, number]) => `<button class="nav-item ${state.page === key ? 'active' : ''}" data-page="${key}"><span class="nav-number">${number}</span><span>${label}</span>${state.page === key ? '<i></i>' : ''}</button>`).join('');
+  const allItems = [
+    ['overview', 'Visao geral', 'layout-dashboard'],
+    ['new', 'Novo lancamento', 'circle-plus'],
+    ['bills', 'Contas a pagar', 'calendar-days'],
+    ['income', 'Receitas', 'wallet-cards'],
+    ['cards', 'Cartoes', 'credit-card'],
+    ['reports', 'Relatorios', 'chart-no-axes-combined'],
+  ];
+
+  const navItems = allItems.map(([key, label, icon]) => `<button class="nav-item ${state.page === key ? 'active' : ''}" data-page="${key}"><span class="nav-icon" data-lucide="${icon}" aria-hidden="true"></span><span>${label}</span>${state.page === key ? '<i></i>' : ''}</button>`).join('');
 
   const isMobile = window.innerWidth <= 680;
 
@@ -483,18 +491,6 @@ async function saveCardPurchase(data) {
 }
 
 function addNavigationIcons() {
-  const iconsByPage = { overview: 'layout-dashboard', new: 'circle-plus', bills: 'calendar-days', income: 'wallet-cards', reports: 'chart-no-axes-combined' };
-  const nav = app.querySelector('.side-nav');
-  nav.querySelectorAll('.nav-item').forEach((button) => {
-    const icon = iconsByPage[button.dataset.page];
-    const number = button.querySelector('.nav-number');
-    if (icon && number) number.outerHTML = `<span class="nav-icon" data-lucide="${icon}" aria-hidden="true"></span>`;
-  });
-  const cardButton = document.createElement('button');
-  cardButton.className = `nav-item ${state.page === 'cards' ? 'active' : ''}`;
-  cardButton.dataset.page = 'cards';
-  cardButton.innerHTML = `<span class="nav-icon" data-lucide="credit-card" aria-hidden="true"></span><span>Cartoes</span>${state.page === 'cards' ? '<i class="nav-active-marker"></i>' : ''}`;
-  nav.insertBefore(cardButton, nav.querySelector('[data-page="reports"]'));
   createIcons({ icons: { LayoutDashboard, CirclePlus, CalendarDays, WalletCards, ChartNoAxesCombined, CreditCard }, attrs: { 'stroke-width': 1.8 } });
 }
 
