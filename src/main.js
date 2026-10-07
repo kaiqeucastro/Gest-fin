@@ -514,7 +514,108 @@ function billRows(items, compact = false) {
 }
 
 function newPage() {
-  return `${imageBanner('Registre com<br />intencao.', 'Cada lancamento conta uma parte da sua historia financeira.', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1500&q=85', 'MOVIMENTACOES / NOVO REGISTRO')}<div class="section-heading form-intro"><div><span class="eyebrow">NOVO REGISTRO</span><h2>Adicionar lancamento</h2><p>Os dados ficam salvos no banco de dados.</p></div></div><section class="panel form-panel"><form id="transaction-form"><div class="form-type"><label class="type-choice"><input type="radio" name="type" value="expense" checked /><span>Saida</span></label><label class="type-choice"><input type="radio" name="type" value="income" /><span>Entrada</span></label></div><div class="form-grid"><label class="field field-wide"><span>Descricao</span><input name="title" required maxlength="80" placeholder="Ex.: Fornecedores, salario, aluguel" /></label><label class="field"><span>Valor</span><div class="currency-input"><b>R$</b><input name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00" /></div></label><label class="field"><span>Categoria</span><select name="category" required>${categories.expense.map((item) => `<option>${item}</option>`).join('')}</select></label><label class="field"><span>Data de vencimento / recebimento</span><input name="date" type="date" value="${isoDate(today.getDate())}" required /></label><label class="field"><span>Conta</span><select name="account"><option>Conta principal</option><option>Cartao corporativo</option><option>Reserva</option></select></label><label class="field"><span>Status</span><select name="status"><option value="pending">Pendente</option><option value="paid">Pago / recebido</option></select></label><label class="field field-wide"><span>Observacao <small>OPCIONAL</small></span><textarea name="note" rows="3" placeholder="Detalhes adicionais"></textarea></label></div><div class="form-footer"><span><i class="secure-dot"></i>Registro salvo no banco de dados</span><button class="primary-button" type="submit">Salvar lancamento <span>-</span></button></div></form></section>`;
+  const cardOptions = state.cards.map(c => `<option value="${safe(c.id)}">${safe(c.name)} · final ${safe(c.lastFour)}</option>`).join('');
+  return `${imageBanner('Registre com<br />intencao.', 'Cada lancamento conta uma parte da sua historia financeira.', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1500&q=85', 'MOVIMENTACOES / NOVO REGISTRO')}
+  <div class="section-heading form-intro"><div><span class="eyebrow">NOVO REGISTRO</span><h2>Adicionar lancamento</h2><p>Os dados ficam salvos no banco de dados.</p></div></div>
+  <section class="panel form-panel">
+    <form id="transaction-form">
+
+      <!-- Tipo -->
+      <div class="form-type">
+        <label class="type-choice"><input type="radio" name="type" value="expense" checked /><span>Saida</span></label>
+        <label class="type-choice"><input type="radio" name="type" value="income" /><span>Entrada</span></label>
+      </div>
+
+      <div class="form-grid">
+        <!-- Descrição -->
+        <label class="field field-wide"><span>Descricao</span><input name="title" required maxlength="80" placeholder="Ex.: Fornecedores, salario, aluguel" /></label>
+
+        <!-- Valor -->
+        <label class="field"><span>Valor total</span><div class="currency-input"><b>R$</b><input name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00" /></div></label>
+
+        <!-- Categoria -->
+        <label class="field"><span>Categoria</span><select name="category" required>${categories.expense.map(c => `<option>${c}</option>`).join('')}</select></label>
+
+        <!-- Data -->
+        <label class="field"><span>Data de vencimento / recebimento</span><input name="date" type="date" value="${isoDate(today.getDate())}" required /></label>
+
+        <!-- Conta -->
+        <label class="field"><span>Conta</span><select name="account">
+          <option>Conta principal</option>
+          <option>Cartao corporativo</option>
+          <option>Reserva</option>
+        </select></label>
+
+        <!-- Status -->
+        <label class="field"><span>Status</span><select name="status">
+          <option value="pending">Pendente</option>
+          <option value="paid">Pago / recebido</option>
+        </select></label>
+
+        <!-- Forma de pagamento (despesas) -->
+        <label class="field" data-expense-only><span>Forma de pagamento</span>
+          <select name="paymentMethod">
+            <option value="account">Conta ou débito</option>
+            <option value="credit">Cartão de crédito</option>
+          </select>
+        </label>
+
+        <!-- Recorrência -->
+        <label class="field" id="recurrence-field"><span>Recorrência</span>
+          <select name="recurrence">
+            <option value="none">Sem recorrência</option>
+            <option value="weekly">Semanal</option>
+            <option value="monthly">Mensal</option>
+            <option value="yearly">Anual</option>
+          </select>
+        </label>
+
+        <!-- Parcelas (cartão de crédito) -->
+        <div class="card-fields field-wide" data-card-fields hidden>
+          <label class="field"><span>Cartão</span>
+            <select name="cardId" ${state.cards.length ? 'required' : 'disabled'}>
+              ${cardOptions || '<option value="">Cadastre um cartão primeiro</option>'}
+            </select>
+          </label>
+          <label class="field"><span>Número de parcelas</span>
+            <input name="installments" type="number" min="1" max="24" value="1" />
+          </label>
+        </div>
+
+        <!-- Parcelas receita (vendas a receber) -->
+        <div class="income-installment-fields field-wide" data-income-installments hidden>
+          <div class="installment-toggle-row">
+            <label class="field" style="flex:1"><span>Parcelar recebimento</span>
+              <select name="incomeInstallments">
+                <option value="1">À vista</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+                <option value="5">5x</option>
+                <option value="6">6x</option>
+                <option value="10">10x</option>
+                <option value="12">12x</option>
+              </select>
+            </label>
+            <label class="field" style="flex:1"><span>Intervalo entre parcelas</span>
+              <select name="incomeInterval">
+                <option value="monthly">Mensal</option>
+                <option value="weekly">Semanal</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- Observação -->
+        <label class="field field-wide"><span>Observacao <small>OPCIONAL</small></span><textarea name="note" rows="2" placeholder="Detalhes adicionais"></textarea></label>
+      </div>
+
+      <div class="form-footer">
+        <span><i class="secure-dot"></i>Registro salvo no banco de dados</span>
+        <button class="primary-button" type="submit">Salvar lancamento <span>↗</span></button>
+      </div>
+    </form>
+  </section>`;
 }
 
 function billsPage() {
@@ -563,11 +664,9 @@ function cardsPage() {
 function enhanceTransactionForm() {
   const form = app.querySelector('#transaction-form');
   if (!form) return;
-  const grid = form.querySelector('.form-grid');
-  const options = state.cards.map((card) => `<option value="${safe(card.id)}">${safe(card.name)} · final ${safe(card.lastFour)}</option>`).join('');
-  grid.insertAdjacentHTML('beforeend', `<label class="field" data-expense-only><span>Forma de pagamento</span><select name="paymentMethod"><option value="account">Conta ou débito</option><option value="credit">Cartão de crédito</option></select></label><div class="card-fields field-wide" data-card-fields hidden><label class="field"><span>Cartão</span><select name="cardId" ${state.cards.length ? 'required' : 'disabled'}>${options || '<option value="">Cadastre um cartão primeiro</option>'}</select></label><label class="field"><span>Parcelas</span><input name="installments" type="number" min="1" max="24" value="1" required /></label></div>`);
   const isExpense = form.querySelector('[name="type"]:checked').value === 'expense';
   form.querySelector('[data-expense-only]').hidden = !isExpense;
+  form.querySelector('[data-income-installments]').hidden = isExpense;
 }
 
 async function saveCardPurchase(data) {
@@ -596,6 +695,77 @@ async function saveCardPurchase(data) {
     installmentCount,
     note: data.get('note').trim(),
   }));
+  await Promise.all(transactions.map(saveTransaction));
+}
+
+// ─── PARCELAS DE RECEITA ──────────────────────────────────────────────────────
+
+async function saveIncomeInstallments(data, count, interval) {
+  const totalCents = Math.round(Number(data.get('amount')) * 100);
+  const baseCents = Math.floor(totalCents / count);
+  const extraCents = totalCents % count;
+  const groupId = crypto.randomUUID();
+  const baseDate = new Date(`${data.get('date')}T12:00:00`);
+
+  const transactions = Array.from({ length: count }, (_, i) => {
+    let d;
+    if (interval === 'weekly') {
+      d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i * 7);
+    } else {
+      d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+    }
+    return {
+      id: crypto.randomUUID(),
+      title: `${data.get('title').trim()} (${i + 1}/${count})`,
+      category: data.get('category'),
+      amount: (baseCents + (i < extraCents ? 1 : 0)) / 100,
+      type: 'income',
+      date: d.toISOString().slice(0, 10),
+      status: 'pending',
+      account: data.get('account'),
+      note: data.get('note').trim(),
+      paymentMethod: 'account',
+      installmentGroup: groupId,
+      installmentNumber: i + 1,
+      installmentCount: count,
+    };
+  });
+  await Promise.all(transactions.map(saveTransaction));
+}
+
+// ─── RECORRÊNCIA ──────────────────────────────────────────────────────────────
+
+async function saveRecurring(data, recurrence) {
+  const occurrences = { weekly: 12, monthly: 12, yearly: 3 };
+  const count = occurrences[recurrence] || 12;
+  const baseDate = new Date(`${data.get('date')}T12:00:00`);
+  const groupId = crypto.randomUUID();
+
+  const transactions = Array.from({ length: count }, (_, i) => {
+    let d;
+    if (recurrence === 'weekly') {
+      d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i * 7);
+    } else if (recurrence === 'monthly') {
+      d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+    } else {
+      d = new Date(baseDate.getFullYear() + i, baseDate.getMonth(), baseDate.getDate());
+    }
+    return {
+      id: crypto.randomUUID(),
+      title: data.get('title').trim(),
+      category: data.get('category'),
+      amount: Number(data.get('amount')),
+      type: data.get('type'),
+      date: d.toISOString().slice(0, 10),
+      status: 'pending',
+      account: data.get('account'),
+      note: data.get('note').trim(),
+      paymentMethod: 'account',
+      installmentGroup: groupId,
+      installmentNumber: i + 1,
+      installmentCount: count,
+    };
+  });
   await Promise.all(transactions.map(saveTransaction));
 }
 
@@ -944,13 +1114,21 @@ app.addEventListener('change', (event) => {
   if (event.target.name === 'type') {
     document.querySelector('[name="category"]').innerHTML = categories[event.target.value].map((item) => `<option>${safe(item)}</option>`).join('');
     const isExpense = event.target.value === 'expense';
-    document.querySelector('[data-expense-only]').hidden = !isExpense;
-    if (!isExpense) document.querySelector('[data-card-fields]').hidden = true;
+    const expenseOnly = document.querySelector('[data-expense-only]');
+    const incomeInstallments = document.querySelector('[data-income-installments]');
+    if (expenseOnly) expenseOnly.hidden = !isExpense;
+    if (incomeInstallments) incomeInstallments.hidden = isExpense;
+    if (!isExpense) {
+      const cardFields = document.querySelector('[data-card-fields]');
+      if (cardFields) cardFields.hidden = true;
+    }
   }
   if (event.target.name === 'paymentMethod') {
     const usingCard = event.target.value === 'credit';
-    document.querySelector('[data-card-fields]').hidden = !usingCard;
-    document.querySelector('[name="date"]').closest('.field').querySelector('span').textContent = usingCard ? 'Data da compra' : 'Data de vencimento / recebimento';
+    const cardFields = document.querySelector('[data-card-fields]');
+    if (cardFields) cardFields.hidden = !usingCard;
+    const dateLabel = document.querySelector('[name="date"]')?.closest('.field')?.querySelector('span');
+    if (dateLabel) dateLabel.textContent = usingCard ? 'Data da compra' : 'Data de vencimento / recebimento';
   }
 });
 
@@ -1112,12 +1290,37 @@ app.addEventListener('submit', async (event) => {
   if (event.target.id !== 'transaction-form') return;
   event.preventDefault();
   const data = new FormData(event.target);
+
+  // Compra parcelada no cartão
   if (data.get('type') === 'expense' && data.get('paymentMethod') === 'credit') {
     await saveCardPurchase(data);
     state.page = 'cards';
     await refresh();
     return;
   }
+
+  // Receita parcelada (vendas a receber)
+  if (data.get('type') === 'income') {
+    const installCount = Math.max(1, Number(data.get('incomeInstallments')) || 1);
+    const interval = data.get('incomeInterval') || 'monthly';
+    if (installCount > 1) {
+      await saveIncomeInstallments(data, installCount, interval);
+      state.page = 'income';
+      await refresh();
+      return;
+    }
+  }
+
+  // Recorrência
+  const recurrence = data.get('recurrence') || 'none';
+  if (recurrence !== 'none') {
+    await saveRecurring(data, recurrence);
+    state.page = data.get('type') === 'income' ? 'income' : 'bills';
+    await refresh();
+    return;
+  }
+
+  // Lançamento simples
   const transaction = {
     id: crypto.randomUUID(),
     title: data.get('title').trim(),

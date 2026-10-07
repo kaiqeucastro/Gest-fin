@@ -280,3 +280,11 @@
   .card-actions{justify-content:stretch}
   .edit-card-btn,.delete-card-btn{flex:1;justify-content:center;min-height:34px;font-size:10px}
 }
+
+/* Campos de parcela receita e recorrência */
+.income-installment-fields{display:grid;grid-column:1/-1}
+.installment-toggle-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.income-installment-fields[hidden],.card-fields[hidden]{display:none}
+@media(max-width:680px){
+  .installment-toggle-row{grid-template-columns:1fr}
+}
