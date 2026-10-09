@@ -47,7 +47,7 @@ const categories = {
   income: ['Salario', 'Freelance', 'Investimentos', 'Vendas', 'Outros'],
 };
 
-const state = { page: 'overview', authScreen: 'login', billsMonth: currentMonth, incomeMonth: currentMonth, transactions: [], cards: [], user: null };
+const state = { page: 'overview', authScreen: 'login', billsMonth: null, incomeMonth: null, transactions: [], cards: [], user: null };
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
 const monthFormat = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
@@ -63,6 +63,10 @@ const monthTransactions = (month) => state.transactions.filter((item) => monthKe
 const expenses = (items) => items.filter((item) => item.type === 'expense');
 const incomes = (items) => items.filter((item) => item.type === 'income');
 const total = (items) => items.reduce((sum, item) => sum + Number(item.amount), 0);
+
+// Inicializa meses do state agora que currentMonth está disponível
+state.billsMonth = currentMonth;
+state.incomeMonth = currentMonth;
 
 function cardDate(year, month, day) {
   const clampedDay = Math.min(day, new Date(year, month + 1, 0).getDate());
