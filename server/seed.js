@@ -8,7 +8,7 @@ const FIXED_USERS = [
 ];
 
 export async function seedUsers() {
-  console.log('✅ Verificando usuários padrão...');
+  let created = 0;
   for (const user of FIXED_USERS) {
     const existing = await db.get('SELECT id FROM users WHERE id = $1', [user.id]);
     if (!existing) {
@@ -17,7 +17,8 @@ export async function seedUsers() {
         'INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)',
         [user.id, user.name, user.email, hash]
       );
-      console.log(`   + ${user.email} criado`);
+      created++;
     }
   }
+  console.log(`✅ Usuários padrão verificados. ${created > 0 ? `${created} novo(s) criado(s).` : 'Nenhuma alteração.'}`);
 }

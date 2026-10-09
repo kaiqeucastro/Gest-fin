@@ -23,18 +23,40 @@ function clearToken() {
 
 async function apiFetch(path, options = {}) {
   const token = getToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
-  return data;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    clearTimeout(timeout);
+    const data = await res.json().catch(() => ({}));
+
+    // Token expirado — desloga silenciosamente
+    if (res.status === 401) {
+      clearToken();
+      state.user = null;
+      state.transactions = [];
+      state.cards = [];
+      render();
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+
+    if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+    return data;
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') throw new Error('Servidor demorou para responder. Tente novamente.');
+    throw err;
+  }
 }
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
@@ -84,6 +106,40 @@ function installmentDueDate(firstDueDate, installmentOffset) {
   return cardDate(dueMonth.getFullYear(), dueMonth.getMonth(), firstDue.getDate());
 }
 
+// ─── TOAST / FEEDBACK ────────────────────────────────────────────────────────
+
+function showToast(message, type = 'success') {
+  const existing = document.getElementById('gest-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'gest-toast';
+  toast.className = `gest-toast gest-toast--${type}`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <span class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
+    <span>${message}</span>
+  `;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('gest-toast--visible'));
+  setTimeout(() => {
+    toast.classList.remove('gest-toast--visible');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function setLoading(btn, loading, originalText = null) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span> Salvando...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = originalText || btn.dataset.originalText || btn.innerHTML;
+  }
+}
+
 // ─── OPERAÇÕES DE DADOS (API) ─────────────────────────────────────────────────
 
 async function readTransactions() {
@@ -131,8 +187,13 @@ function exportTransactions(format) {
 async function markPaid(id) {
   const transaction = state.transactions.find((item) => item.id === id);
   if (!transaction) return;
-  await saveTransaction({ ...transaction, status: 'paid' });
-  await refresh();
+  try {
+    await saveTransaction({ ...transaction, status: 'paid' });
+    showToast(`"${transaction.title}" marcado como pago.`);
+    await refresh();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ─── PÁGINAS ──────────────────────────────────────────────────────────────────
@@ -527,7 +588,7 @@ function overviewPage() {
   const pendingExpense = total(expenses(current).filter(t => t.status === 'pending'));
 
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date));
-  return `${imageBanner('Clareza para decidir.<br />Controle para crescer.', 'Uma visao objetiva do seu fluxo financeiro, compromissos e oportunidades.', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85', 'PAINEL EXECUTIVO / OUTUBRO 2026')}
+  return `${imageBanner('Clareza para decidir.<br />Controle para crescer.', 'Uma visao objetiva do seu fluxo financeiro, compromissos e oportunidades.', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85', `PAINEL EXECUTIVO / ${monthFormat.format(today).toUpperCase()}`)}
   <div class="section-heading"><div><span class="eyebrow">RESUMO DO PERIODO</span><h2>Visao geral</h2></div><button class="text-button" data-page="reports">Ver relatorios <span>-</span></button></div>
   <div class="stats-grid">
     ${statCard('Saldo disponivel', money(balance), pendingExpense > 0 ? `<span class="down">- ${money(pendingExpense)} pendente</span>` : '<span class="up">Apenas valores pagos</span>', balance >= 0 ? 'positive' : 'negative', 'R$')}
@@ -700,7 +761,7 @@ function billsPage() {
   <div class="month-nav">
     <button class="month-nav-btn" data-bills-month="${prevMonth}">← Anterior</button>
     <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
-    <button class="month-nav-btn" data-bills-month="${nextMonth}" ${isFuture ? '' : ''}>Próximo →</button>
+    <button class="month-nav-btn" data-bills-month="${nextMonth}" ${isFuture ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
   </div>
 
   <!-- Resumo do mês -->
@@ -722,6 +783,8 @@ function incomePage() {
   const prevMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const nextMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
+  const isFutureIncome = nextMonth > currentMonth;
+
   const records = incomes(monthTransactions(selectedMonth)).sort((a, b) => b.date.localeCompare(a.date));
   const paidRecords = records.filter(t => t.status === 'paid');
   const pendingRecords = records.filter(t => t.status === 'pending');
@@ -733,7 +796,7 @@ function incomePage() {
   <div class="month-nav">
     <button class="month-nav-btn" data-income-month="${prevMonth}">← Anterior</button>
     <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
-    <button class="month-nav-btn" data-income-month="${nextMonth}">Próximo →</button>
+    <button class="month-nav-btn" data-income-month="${nextMonth}" ${isFutureIncome ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
   </div>
 
   <div class="stats-grid income-stats">
@@ -1176,12 +1239,18 @@ app.addEventListener('click', async (event) => {
     const card = state.cards.find(c => c.id === deleteCardBtn.dataset.deleteCard);
     if (!card) return;
     const hasTransactions = state.transactions.some(t => t.cardId === card.id);
+    const count = state.transactions.filter(t => t.cardId === card.id).length;
     const msg = hasTransactions
-      ? `Apagar o cartão "${card.name}"?\n\nAtenção: todas as ${state.transactions.filter(t => t.cardId === card.id).length} transações vinculadas a este cartão também serão apagadas.`
+      ? `Apagar o cartão "${card.name}"?\n\nAtenção: ${count} transação(ões) vinculada(s) também serão apagadas.`
       : `Apagar o cartão "${card.name}"?`;
     if (window.confirm(msg)) {
-      await deleteCard(card.id);
-      await refresh();
+      try {
+        await deleteCard(card.id);
+        showToast(`Cartão "${card.name}" apagado.`);
+        await refresh();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
     return;
   }
@@ -1190,8 +1259,13 @@ app.addEventListener('click', async (event) => {
   if (deleteButton) {
     const transaction = state.transactions.find((item) => item.id === deleteButton.dataset.delete);
     if (transaction && window.confirm(`Excluir o lancamento "${transaction.title}"?`)) {
-      await deleteTransaction(transaction.id);
-      await refresh();
+      try {
+        await deleteTransaction(transaction.id);
+        showToast(`"${transaction.title}" excluído.`);
+        await refresh();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
     return;
   }
@@ -1269,43 +1343,59 @@ app.addEventListener('submit', async (event) => {
   // ── Editar lançamento ──
   if (event.target.id === 'edit-transaction-form') {
     event.preventDefault();
+    const btn = event.target.querySelector('[type="submit"]');
     const data = new FormData(event.target);
     const original = state.transactions.find(t => t.id === data.get('id'));
     if (!original) return;
-    const updated = {
-      ...original,
-      title: data.get('title').trim(),
-      amount: Number(data.get('amount')),
-      type: data.get('type'),
-      category: data.get('category'),
-      date: data.get('date'),
-      status: data.get('status'),
-      account: data.get('account'),
-      note: data.get('note').trim(),
-    };
-    await saveTransaction(updated);
-    closeModal();
-    await refresh();
+    setLoading(btn, true);
+    try {
+      const updated = {
+        ...original,
+        title: data.get('title').trim(),
+        amount: Number(data.get('amount')),
+        type: data.get('type'),
+        category: data.get('category'),
+        date: data.get('date'),
+        status: data.get('status'),
+        account: data.get('account'),
+        note: data.get('note').trim(),
+      };
+      await saveTransaction(updated);
+      showToast('Lançamento atualizado com sucesso.');
+      closeModal();
+      await refresh();
+    } catch (err) {
+      showToast(err.message, 'error');
+      setLoading(btn, false);
+    }
     return;
   }
 
   // ── Editar cartão ──
   if (event.target.id === 'edit-card-form') {
     event.preventDefault();
+    const btn = event.target.querySelector('[type="submit"]');
     const data = new FormData(event.target);
     const original = state.cards.find(c => c.id === data.get('id'));
     if (!original) return;
-    await saveCard({
-      ...original,
-      name: data.get('cardName').trim(),
-      issuer: data.get('issuer').trim(),
-      lastFour: data.get('lastFour'),
-      limit: Number(data.get('limit')),
-      closingDay: Number(data.get('closingDay')),
-      dueDay: Number(data.get('dueDay')),
-    });
-    closeModal();
-    await refresh();
+    setLoading(btn, true);
+    try {
+      await saveCard({
+        ...original,
+        name: data.get('cardName').trim(),
+        issuer: data.get('issuer').trim(),
+        lastFour: data.get('lastFour'),
+        limit: Number(data.get('limit')),
+        closingDay: Number(data.get('closingDay')),
+        dueDay: Number(data.get('dueDay')),
+      });
+      showToast('Cartão atualizado com sucesso.');
+      closeModal();
+      await refresh();
+    } catch (err) {
+      showToast(err.message, 'error');
+      setLoading(btn, false);
+    }
     return;
   }
 
@@ -1405,17 +1495,25 @@ app.addEventListener('submit', async (event) => {
   // ── Cartão ──
   if (event.target.id === 'card-form') {
     event.preventDefault();
+    const btn = event.target.querySelector('[type="submit"]');
     const data = new FormData(event.target);
-    await saveCard({
-      id: crypto.randomUUID(),
-      name: data.get('cardName').trim(),
-      issuer: data.get('issuer').trim(),
-      lastFour: data.get('lastFour'),
-      limit: Number(data.get('limit')),
-      closingDay: Number(data.get('closingDay')),
-      dueDay: Number(data.get('dueDay')),
-    });
-    await refresh();
+    setLoading(btn, true);
+    try {
+      await saveCard({
+        id: crypto.randomUUID(),
+        name: data.get('cardName').trim(),
+        issuer: data.get('issuer').trim(),
+        lastFour: data.get('lastFour'),
+        limit: Number(data.get('limit')),
+        closingDay: Number(data.get('closingDay')),
+        dueDay: Number(data.get('dueDay')),
+      });
+      showToast('Cartão cadastrado com sucesso.');
+      await refresh();
+    } catch (err) {
+      showToast(err.message, 'error');
+      setLoading(btn, false);
+    }
     return;
   }
 
@@ -1423,52 +1521,64 @@ app.addEventListener('submit', async (event) => {
   if (event.target.id !== 'transaction-form') return;
   event.preventDefault();
   const data = new FormData(event.target);
+  const btn = event.target.querySelector('[type="submit"]');
+  setLoading(btn, true);
 
-  // Compra parcelada no cartão
-  if (data.get('type') === 'expense' && data.get('paymentMethod') === 'credit') {
-    await saveCardPurchase(data);
-    state.page = 'cards';
-    await refresh();
-    return;
-  }
-
-  // Receita parcelada (vendas a receber)
-  if (data.get('type') === 'income') {
-    const installCount = Math.max(1, Number(data.get('incomeInstallments')) || 1);
-    const interval = data.get('incomeInterval') || 'monthly';
-    if (installCount > 1) {
-      await saveIncomeInstallments(data, installCount, interval);
-      state.page = 'income';
+  try {
+    // Compra parcelada no cartão
+    if (data.get('type') === 'expense' && data.get('paymentMethod') === 'credit') {
+      await saveCardPurchase(data);
+      showToast('Compra registrada com parcelas.');
+      state.page = 'cards';
       await refresh();
       return;
     }
-  }
 
-  // Recorrência
-  const recurrence = data.get('recurrence') || 'none';
-  if (recurrence !== 'none') {
-    await saveRecurring(data, recurrence);
-    state.page = data.get('type') === 'income' ? 'income' : 'bills';
+    // Receita parcelada (vendas a receber)
+    if (data.get('type') === 'income') {
+      const installCount = Math.max(1, Number(data.get('incomeInstallments')) || 1);
+      const interval = data.get('incomeInterval') || 'monthly';
+      if (installCount > 1) {
+        await saveIncomeInstallments(data, installCount, interval);
+        showToast(`Receita registrada em ${installCount} parcelas.`);
+        state.page = 'income';
+        await refresh();
+        return;
+      }
+    }
+
+    // Recorrência
+    const recurrence = data.get('recurrence') || 'none';
+    if (recurrence !== 'none') {
+      await saveRecurring(data, recurrence);
+      const recurrenceLabel = { weekly: 'semanal', monthly: 'mensal', yearly: 'anual' }[recurrence];
+      showToast(`Lançamento recorrente (${recurrenceLabel}) criado.`);
+      state.page = data.get('type') === 'income' ? 'income' : 'bills';
+      await refresh();
+      return;
+    }
+
+    // Lançamento simples
+    const transaction = {
+      id: crypto.randomUUID(),
+      title: data.get('title').trim(),
+      amount: Number(data.get('amount')),
+      type: data.get('type'),
+      category: data.get('category'),
+      date: data.get('date'),
+      status: data.get('status'),
+      account: data.get('account'),
+      note: data.get('note').trim(),
+      paymentMethod: 'account',
+    };
+    await saveTransaction(transaction);
+    showToast('Lançamento salvo com sucesso.');
+    state.page = transaction.type === 'income' ? 'income' : 'overview';
     await refresh();
-    return;
+  } catch (err) {
+    showToast(err.message, 'error');
+    setLoading(btn, false);
   }
-
-  // Lançamento simples
-  const transaction = {
-    id: crypto.randomUUID(),
-    title: data.get('title').trim(),
-    amount: Number(data.get('amount')),
-    type: data.get('type'),
-    category: data.get('category'),
-    date: data.get('date'),
-    status: data.get('status'),
-    account: data.get('account'),
-    note: data.get('note').trim(),
-    paymentMethod: 'account',
-  };
-  await saveTransaction(transaction);
-  state.page = transaction.type === 'income' ? 'income' : 'overview';
-  await refresh();
 });
 
 // ─── INICIALIZAÇÃO ────────────────────────────────────────────────────────────
