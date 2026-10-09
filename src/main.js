@@ -466,14 +466,20 @@ function monthChart() {
   const months = Array.from({ length: 6 }, (_, index) => new Date(today.getFullYear(), today.getMonth() - 5 + index, 1));
   const values = months.map((date) => {
     const records = monthTransactions(monthKey(date));
-    return { label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', ''), income: total(incomes(records)), expense: total(expenses(records)) };
+    // Apenas pagos no gráfico
+    return {
+      label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', ''),
+      income: total(incomes(records).filter(t => t.status === 'paid')),
+      expense: total(expenses(records).filter(t => t.status === 'paid')),
+    };
   });
   const max = Math.max(1, ...values.flatMap((item) => [item.income, item.expense]));
-  return `<div class="chart-legend"><span><i class="legend-income"></i>Entradas</span><span><i class="legend-expense"></i>Saidas</span><strong>${monthFormat.format(today)}</strong></div><div class="bar-chart">${values.map((item) => `<div class="bar-column"><div class="bar-pair"><i class="bar income-bar" style="height:${Math.max(3, item.income / max * 100)}%" title="Entradas: ${money(item.income)}"></i><i class="bar expense-bar" style="height:${Math.max(3, item.expense / max * 100)}%" title="Saidas: ${money(item.expense)}"></i></div><span>${item.label}</span></div>`).join('')}</div>`;
+  return `<div class="chart-legend"><span><i class="legend-income"></i>Entradas pagas</span><span><i class="legend-expense"></i>Saidas pagas</span><strong>${monthFormat.format(today)}</strong></div><div class="bar-chart">${values.map((item) => `<div class="bar-column"><div class="bar-pair"><i class="bar income-bar" style="height:${Math.max(3, item.income / max * 100)}%" title="Entradas: ${money(item.income)}"></i><i class="bar expense-bar" style="height:${Math.max(3, item.expense / max * 100)}%" title="Saidas: ${money(item.expense)}"></i></div><span>${item.label}</span></div>`).join('')}</div>`;
 }
 
 function categoryBreakdown() {
-  const byCategory = expenses(monthTransactions(currentMonth)).reduce((result, item) => {
+  // Apenas despesas pagas no breakdown
+  const byCategory = expenses(monthTransactions(currentMonth)).filter(t => t.status === 'paid').reduce((result, item) => {
     result[item.category] = (result[item.category] || 0) + Number(item.amount);
     return result;
   }, {});
@@ -499,13 +505,40 @@ function upcomingBills(limit = 4) {
 
 function overviewPage() {
   const current = monthTransactions(currentMonth);
-  const priorSpending = total(expenses(monthTransactions(previousMonth)));
-  const spending = total(expenses(current));
-  const variance = priorSpending ? Math.round((spending - priorSpending) / priorSpending * 100) : 0;
-  const dueSoon = upcomingBills().length;
-  const balance = total(incomes(current)) - total(expenses(current));
+  const prior = monthTransactions(previousMonth);
+
+  // Apenas transações PAGAS entram no saldo e nos totais
+  const paidExpenses    = expenses(current).filter(t => t.status === 'paid');
+  const paidIncomes     = incomes(current).filter(t => t.status === 'paid');
+  const priorPaidExp    = total(expenses(prior).filter(t => t.status === 'paid'));
+
+  const spending  = total(paidExpenses);
+  const received  = total(paidIncomes);
+  const balance   = received - spending;
+  const variance  = priorPaidExp ? Math.round((spending - priorPaidExp) / priorPaidExp * 100) : 0;
+  const dueSoon   = upcomingBills().length;
+
+  // Pendentes do mês (para informação)
+  const pendingIncome  = total(incomes(current).filter(t => t.status === 'pending'));
+  const pendingExpense = total(expenses(current).filter(t => t.status === 'pending'));
+
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date));
-  return `${imageBanner('Clareza para decidir.<br />Controle para crescer.', 'Uma visao objetiva do seu fluxo financeiro, compromissos e oportunidades.', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85', 'PAINEL EXECUTIVO / OUTUBRO 2026')}<div class="section-heading"><div><span class="eyebrow">RESUMO DO PERIODO</span><h2>Visao geral</h2></div><button class="text-button" data-page="reports">Ver relatorios <span>-</span></button></div><div class="stats-grid">${statCard('Saldo disponivel', money(balance), '<span class="up">Atualizado agora</span>', 'positive', 'R$')}${statCard('Despesas do mes', money(spending), `${variance > 0 ? '<span class="down">+' : '<span class="up">'}${Math.abs(variance)}%</span> vs. mes anterior`, variance > 0 ? 'negative' : 'positive', '-')}${statCard('Receitas recebidas', money(total(incomes(current))), `<span class="up">${incomes(current).length} entradas</span> neste mes`, 'positive', '+')}${statCard('Contas em aberto', String(dueSoon).padStart(2, '0'), '<span class="neutral-tag">Proximos vencimentos</span>', 'neutral', '-')}</div><div class="dashboard-grid"><section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">FLUXO DE CAIXA</span><h3>Entradas e saidas</h3></div></div>${monthChart()}</section><section class="panel category-panel"><div class="panel-heading"><div><span class="eyebrow">ONDE SEU DINHEIRO VAI</span><h3>Consumo por categoria</h3></div></div>${categoryBreakdown()}</section></div><div class="dashboard-grid lower-grid"><section class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow">MOVIMENTACOES</span><h3>Recentes</h3></div><button class="text-button" data-page="new">Novo lancamento <span>+</span></button></div><div class="table-wrap"><table><thead><tr><th>DESCRICAO</th><th>CATEGORIA</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead><tbody>${transactionRows(recent, 5)}</tbody></table></div></section><section class="panel due-panel"><div class="panel-heading"><div><span class="eyebrow">AGENDA FINANCEIRA</span><h3>Proximos vencimentos</h3></div><button class="text-button" data-page="bills">Ver todas <span>-</span></button></div><div class="due-list">${billRows(upcomingBills(3), true)}</div></section></div>`;
+  return `${imageBanner('Clareza para decidir.<br />Controle para crescer.', 'Uma visao objetiva do seu fluxo financeiro, compromissos e oportunidades.', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85', 'PAINEL EXECUTIVO / OUTUBRO 2026')}
+  <div class="section-heading"><div><span class="eyebrow">RESUMO DO PERIODO</span><h2>Visao geral</h2></div><button class="text-button" data-page="reports">Ver relatorios <span>-</span></button></div>
+  <div class="stats-grid">
+    ${statCard('Saldo disponivel', money(balance), pendingExpense > 0 ? `<span class="down">- ${money(pendingExpense)} pendente</span>` : '<span class="up">Apenas valores pagos</span>', balance >= 0 ? 'positive' : 'negative', 'R$')}
+    ${statCard('Despesas pagas', money(spending), `${variance > 0 ? '<span class="down">+' : '<span class="up">'}${Math.abs(variance)}%</span> vs. mes anterior`, variance > 0 ? 'negative' : 'positive', '-')}
+    ${statCard('Receitas recebidas', money(received), pendingIncome > 0 ? `<span class="neutral-tag">+ ${money(pendingIncome)} a receber</span>` : `<span class="up">${paidIncomes.length} entradas pagas</span>`, 'positive', '+')}
+    ${statCard('Contas em aberto', String(dueSoon).padStart(2, '0'), '<span class="neutral-tag">Proximos vencimentos</span>', 'neutral', '-')}
+  </div>
+  <div class="dashboard-grid">
+    <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">FLUXO DE CAIXA</span><h3>Entradas e saidas</h3></div></div>${monthChart()}</section>
+    <section class="panel category-panel"><div class="panel-heading"><div><span class="eyebrow">ONDE SEU DINHEIRO VAI</span><h3>Consumo por categoria</h3></div></div>${categoryBreakdown()}</section>
+  </div>
+  <div class="dashboard-grid lower-grid">
+    <section class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow">MOVIMENTACOES</span><h3>Recentes</h3></div><button class="text-button" data-page="new">Novo lancamento <span>+</span></button></div><div class="table-wrap"><table><thead><tr><th>DESCRICAO</th><th>CATEGORIA</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead><tbody>${transactionRows(recent, 5)}</tbody></table></div></section>
+    <section class="panel due-panel"><div class="panel-heading"><div><span class="eyebrow">AGENDA FINANCEIRA</span><h3>Proximos vencimentos</h3></div><button class="text-button" data-page="bills">Ver todas <span>-</span></button></div><div class="due-list">${billRows(upcomingBills(3), true)}</div></section>
+  </div>`;
 }
 
 function billRows(items, compact = false) {
@@ -626,13 +659,15 @@ function billsPage() {
 
 function incomePage() {
   const records = incomes(state.transactions).sort((a, b) => b.date.localeCompare(a.date));
-  const thisMonth = total(incomes(monthTransactions(currentMonth)));
+  // Apenas receitas pagas no total do mês
+  const thisMonth = total(incomes(monthTransactions(currentMonth)).filter(t => t.status === 'paid'));
   return `${imageBanner('Receita bem cuidada<br />vira possibilidade.', 'Acompanhe entradas confirmadas e valores previstos para o periodo.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'FLUXO DE CAIXA / RECEITAS')}<div class="stats-grid income-stats">${statCard('Recebido no mes', money(thisMonth), '<span class="up">Entradas confirmadas</span>', 'positive', '+')}${statCard('Total de registros', String(records.length).padStart(2, '0'), 'No historico financeiro', 'neutral', '#')}${statCard('Total pendente', money(total(records.filter((item) => item.status === 'pending'))), '<span class="neutral-tag">A receber</span>', 'neutral', '-')}</div><section class="panel table-panel income-table"><div class="panel-heading"><div><span class="eyebrow">HISTORICO</span><h3>Receitas registradas</h3></div><button class="primary-button" data-page="new">+ Nova receita</button></div><div class="table-wrap"><table><thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead><tbody>${records.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td><span class="category-pill">${safe(item.category)}</span></td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita registrada.</td></tr>'}</tbody></table></div></section>`;
 }
 
 function reportsPage() {
-  const currentExpense = total(expenses(monthTransactions(currentMonth)));
-  const previousExpense = total(expenses(monthTransactions(previousMonth)));
+  // Apenas pagos nos relatórios
+  const currentExpense = total(expenses(monthTransactions(currentMonth)).filter(t => t.status === 'paid'));
+  const previousExpense = total(expenses(monthTransactions(previousMonth)).filter(t => t.status === 'paid'));
   const difference = currentExpense - previousExpense;
   return `${imageBanner('Decisoes melhores<br />com dados claros.', 'Compare periodos, entenda seus habitos e escolha o proximo passo.', 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1500&q=85', 'ANALISE / RELATORIOS')}<div class="section-heading"><div><span class="eyebrow">ANALISE MENSAL</span><h2>Relatorios</h2></div><span class="period-label">${monthFormat.format(today)}</span></div><div class="stats-grid report-stats">${statCard('Despesas atuais', money(currentExpense), `Este mes - <span class="${difference <= 0 ? 'up' : 'down'}">${difference <= 0 ? '-' : '+'} ${money(Math.abs(difference))}</span>`, difference <= 0 ? 'positive' : 'negative', '-')}${statCard('Despesas anteriores', money(previousExpense), `${monthFormat.format(previousDate)}`, 'neutral', '-')}${statCard('Variacao mensal', `${previousExpense ? Math.round((difference / previousExpense) * 100) : 0}%`, difference <= 0 ? '<span class="up">Reducao no periodo</span>' : '<span class="down">Acima do periodo anterior</span>', difference <= 0 ? 'positive' : 'negative', '-')}</div><div class="dashboard-grid report-grid"><section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">COMPARATIVO</span><h3>Fluxo dos ultimos meses</h3></div></div>${monthChart()}</section><section class="panel category-panel"><div class="panel-heading"><div><span class="eyebrow">DISTRIBUICAO</span><h3>Despesas por categoria</h3></div></div>${categoryBreakdown()}</section></div>`;
 }
