@@ -288,3 +288,30 @@
 @media(max-width:680px){
   .installment-toggle-row{grid-template-columns:1fr}
 }
+
+/* ── Navegação de mês ── */
+.month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 14px;padding:10px 16px;border:1px solid #e4e8e1;border-radius:6px;background:#fff}
+.month-nav-label{font:600 13px Manrope,sans-serif;color:var(--ink);text-transform:capitalize}
+.month-nav-btn{padding:6px 12px;border:1px solid #e0e4de;border-radius:4px;background:#f7f9f6;color:#47765e;font-size:10px;font-weight:700;transition:background .12s}
+.month-nav-btn:hover{background:#eef1ec}
+
+/* Agrupamento por semana nas contas */
+.bills-group{margin-bottom:4px}
+.bills-group-label{display:flex;align-items:center;justify-content:space-between;padding:8px 0 6px;color:#9aa49e;font-size:8px;font-weight:700;letter-spacing:.8px;border-bottom:1px solid #f0f2ed;text-transform:uppercase}
+.bills-group-total{color:#4b554f;font-weight:700}
+.bills-stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px}
+
+/* Dark mode */
+:root[data-theme="dark"] .month-nav{background:#0e1f18;border-color:#1e3428}
+:root[data-theme="dark"] .month-nav-label{color:#c8d8cc}
+:root[data-theme="dark"] .month-nav-btn{background:#142618;border-color:#2b3f32;color:#6aaa82}
+:root[data-theme="dark"] .month-nav-btn:hover{background:#1a3020}
+:root[data-theme="dark"] .bills-group-label{border-color:#1e3428;color:#5a7a68}
+:root[data-theme="dark"] .bills-group-total{color:#8aaa96}
+
+/* Mobile */
+@media(max-width:680px){
+  .month-nav{margin:10px 0 10px}
+  .month-nav-label{font-size:12px}
+  .bills-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+}

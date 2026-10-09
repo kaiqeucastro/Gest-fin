@@ -47,7 +47,7 @@ const categories = {
   income: ['Salario', 'Freelance', 'Investimentos', 'Vendas', 'Outros'],
 };
 
-const state = { page: 'overview', authScreen: 'login', transactions: [], cards: [], user: null };
+const state = { page: 'overview', authScreen: 'login', billsMonth: currentMonth, incomeMonth: currentMonth, transactions: [], cards: [], user: null };
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
 const monthFormat = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
@@ -652,16 +652,104 @@ function newPage() {
 }
 
 function billsPage() {
-  const bills = expenses(state.transactions).sort((a, b) => a.date.localeCompare(b.date));
-  const pending = bills.filter((item) => item.status === 'pending');
-  return `${imageBanner('Antecipe seus<br />compromissos.', 'Vencimentos organizados para voce manter o controle e a tranquilidade.', 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=1500&q=85', 'AGENDA / CONTAS A PAGAR')}<div class="section-heading"><div><span class="eyebrow">${pending.length} PENDENTES</span><h2>Contas a pagar</h2></div><button class="primary-button" data-page="new">+ Novo lancamento</button></div><section class="panel bills-panel"><div class="list-head"><span>VENCIMENTO / DESCRICAO</span><span>VALOR</span><span>ACAO</span></div><div class="due-list full-list">${billRows(bills)}</div></section>`;
+  const selectedMonth = state.billsMonth || currentMonth;
+  const selectedDate = new Date(`${selectedMonth}-01T12:00:00`);
+  const prevMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
+  const nextMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
+  const isFuture = nextMonth > currentMonth;
+
+  // Filtra despesas do mês selecionado
+  const bills = expenses(monthTransactions(selectedMonth)).sort((a, b) => a.date.localeCompare(b.date));
+  const pending = bills.filter(t => t.status === 'pending');
+  const paid = bills.filter(t => t.status === 'paid');
+
+  const totalPending = total(pending);
+  const totalPaid = total(paid);
+
+  // Agrupa por semana dentro do mês
+  const grouped = bills.reduce((acc, item) => {
+    const d = new Date(`${item.date}T12:00:00`);
+    const week = Math.ceil(d.getDate() / 7);
+    const label = `Semana ${week}`;
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(item);
+    return acc;
+  }, {});
+
+  const groupedHTML = Object.entries(grouped).map(([label, items]) => `
+    <div class="bills-group">
+      <div class="bills-group-label">
+        <span>${label}</span>
+        <span class="bills-group-total">${money(total(items))}</span>
+      </div>
+      ${billRows(items)}
+    </div>
+  `).join('') || billRows([]);
+
+  return `${imageBanner('Antecipe seus<br />compromissos.', 'Vencimentos organizados para voce manter o controle e a tranquilidade.', 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=1500&q=85', 'AGENDA / CONTAS A PAGAR')}
+  <div class="section-heading">
+    <div><span class="eyebrow">${pending.length} PENDENTES</span><h2>Contas a pagar</h2></div>
+    <button class="primary-button" data-page="new">+ Novo lancamento</button>
+  </div>
+
+  <!-- Navegação de mês -->
+  <div class="month-nav">
+    <button class="month-nav-btn" data-bills-month="${prevMonth}">← Anterior</button>
+    <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
+    <button class="month-nav-btn" data-bills-month="${nextMonth}" ${isFuture ? '' : ''}>Próximo →</button>
+  </div>
+
+  <!-- Resumo do mês -->
+  <div class="stats-grid bills-stats">
+    ${statCard('Pendente', money(totalPending), `<span class="down">${pending.length} conta${pending.length !== 1 ? 's' : ''}</span>`, 'negative', '-')}
+    ${statCard('Pago', money(totalPaid), `<span class="up">${paid.length} conta${paid.length !== 1 ? 's' : ''}</span>`, 'positive', '✓')}
+    ${statCard('Total do mês', money(total(bills)), `${bills.length} lançamento${bills.length !== 1 ? 's' : ''}`, 'neutral', '#')}
+  </div>
+
+  <section class="panel bills-panel">
+    <div class="list-head"><span>VENCIMENTO / DESCRICAO</span><span>VALOR</span><span>ACAO</span></div>
+    <div class="due-list full-list bills-grouped">${groupedHTML}</div>
+  </section>`;
 }
 
 function incomePage() {
-  const records = incomes(state.transactions).sort((a, b) => b.date.localeCompare(a.date));
-  // Apenas receitas pagas no total do mês
-  const thisMonth = total(incomes(monthTransactions(currentMonth)).filter(t => t.status === 'paid'));
-  return `${imageBanner('Receita bem cuidada<br />vira possibilidade.', 'Acompanhe entradas confirmadas e valores previstos para o periodo.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'FLUXO DE CAIXA / RECEITAS')}<div class="stats-grid income-stats">${statCard('Recebido no mes', money(thisMonth), '<span class="up">Entradas confirmadas</span>', 'positive', '+')}${statCard('Total de registros', String(records.length).padStart(2, '0'), 'No historico financeiro', 'neutral', '#')}${statCard('Total pendente', money(total(records.filter((item) => item.status === 'pending'))), '<span class="neutral-tag">A receber</span>', 'neutral', '-')}</div><section class="panel table-panel income-table"><div class="panel-heading"><div><span class="eyebrow">HISTORICO</span><h3>Receitas registradas</h3></div><button class="primary-button" data-page="new">+ Nova receita</button></div><div class="table-wrap"><table><thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead><tbody>${records.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td><span class="category-pill">${safe(item.category)}</span></td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita registrada.</td></tr>'}</tbody></table></div></section>`;
+  const selectedMonth = state.incomeMonth || currentMonth;
+  const selectedDate = new Date(`${selectedMonth}-01T12:00:00`);
+  const prevMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
+  const nextMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
+
+  const records = incomes(monthTransactions(selectedMonth)).sort((a, b) => b.date.localeCompare(a.date));
+  const paidRecords = records.filter(t => t.status === 'paid');
+  const pendingRecords = records.filter(t => t.status === 'pending');
+  const thisMonth = total(paidRecords);
+
+  return `${imageBanner('Receita bem cuidada<br />vira possibilidade.', 'Acompanhe entradas confirmadas e valores previstos para o periodo.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'FLUXO DE CAIXA / RECEITAS')}
+
+  <!-- Navegação de mês -->
+  <div class="month-nav">
+    <button class="month-nav-btn" data-income-month="${prevMonth}">← Anterior</button>
+    <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
+    <button class="month-nav-btn" data-income-month="${nextMonth}">Próximo →</button>
+  </div>
+
+  <div class="stats-grid income-stats">
+    ${statCard('Recebido no mes', money(thisMonth), `<span class="up">${paidRecords.length} entrada${paidRecords.length !== 1 ? 's' : ''} confirmada${paidRecords.length !== 1 ? 's' : ''}</span>`, 'positive', '+')}
+    ${statCard('A receber', money(total(pendingRecords)), `<span class="neutral-tag">${pendingRecords.length} previsto${pendingRecords.length !== 1 ? 's' : ''}</span>`, 'neutral', '-')}
+    ${statCard('Total do mes', money(total(records)), `${records.length} lançamento${records.length !== 1 ? 's' : ''}`, 'neutral', '#')}
+  </div>
+
+  <section class="panel table-panel income-table">
+    <div class="panel-heading">
+      <div><span class="eyebrow">EXTRATO — ${monthFormat.format(selectedDate).toUpperCase()}</span><h3>Receitas do mês</h3></div>
+      <button class="primary-button" data-page="new">+ Nova receita</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead>
+        <tbody>${records.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td><span class="category-pill">${safe(item.category)}</span></td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita neste mês.</td></tr>'}</tbody>
+      </table>
+    </div>
+  </section>`;
 }
 
 function reportsPage() {
@@ -950,6 +1038,12 @@ function showAuthMsg(id, text, type = 'error') {
 // ─── EVENTOS ──────────────────────────────────────────────────────────────────
 
 app.addEventListener('click', async (event) => {
+  // ── Navegação de mês (contas/receitas) ──
+  const billsMonthBtn = event.target.closest('[data-bills-month]');
+  if (billsMonthBtn) { state.billsMonth = billsMonthBtn.dataset.billsMonth; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const incomeMonthBtn = event.target.closest('[data-income-month]');
+  if (incomeMonthBtn) { state.incomeMonth = incomeMonthBtn.dataset.incomeMonth; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+
   // ── Busca ──
   if (event.target.closest('#search-toggle')) {
     const panel = document.getElementById('search-panel');
