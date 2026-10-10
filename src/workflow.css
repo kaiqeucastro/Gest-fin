@@ -403,3 +403,11 @@
   .filter-bar{gap:4px}
   .filter-btn{font-size:8px;padding:5px 9px}
 }
+
+/* ── Modal de confirmação ── */
+.confirm-modal{max-width:400px}
+.confirm-body{padding:18px 22px}
+.confirm-body p{font-size:13px;color:var(--ink);line-height:1.6}
+.confirm-danger{background:#dc2626}
+.confirm-danger:hover{background:#b91c1c}
+:root[data-theme="dark"] .confirm-body p{color:#c8dce8}

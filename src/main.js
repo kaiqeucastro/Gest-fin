@@ -1042,7 +1042,35 @@ async function saveRecurring(data, recurrence) {
   await Promise.all(transactions.map(saveTransaction));
 }
 
-// ─── MODAIS DE EDIÇÃO ─────────────────────────────────────────────────────────
+// ─── MODAL DE CONFIRMAÇÃO ─────────────────────────────────────────────────────
+
+function confirmDialog(message) {
+  return new Promise((resolve) => {
+    closeModal();
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'edit-modal';
+    modal.innerHTML = `
+      <div class="modal confirm-modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Confirmar ação</h3>
+          <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="confirm-body">
+          <p>${message}</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-cancel" id="confirm-cancel">Cancelar</button>
+          <button type="button" class="primary-button confirm-danger" id="confirm-ok">Confirmar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#confirm-ok').addEventListener('click', () => { closeModal(); resolve(true); });
+    modal.querySelector('#confirm-cancel').addEventListener('click', () => { closeModal(); resolve(false); });
+    modal.querySelector('#modal-close').addEventListener('click', () => { closeModal(); resolve(false); });
+    modal.addEventListener('click', (e) => { if (e.target === modal) { closeModal(); resolve(false); } });
+  });
+}
 
 function openEditModal(id) {
   const t = state.transactions.find(item => item.id === id);
@@ -1364,9 +1392,9 @@ app.addEventListener('click', async (event) => {
     const hasTransactions = state.transactions.some(t => t.cardId === card.id);
     const count = state.transactions.filter(t => t.cardId === card.id).length;
     const msg = hasTransactions
-      ? `Apagar o cartão "${card.name}"?\n\nAtenção: ${count} transação(ões) vinculada(s) também serão apagadas.`
+      ? `Apagar o cartão "${card.name}"? ${count} transação(ões) vinculada(s) também serão apagadas.`
       : `Apagar o cartão "${card.name}"?`;
-    if (window.confirm(msg)) {
+    if (await confirmDialog(msg)) {
       try {
         await deleteCard(card.id);
         showToast(`Cartão "${card.name}" apagado.`);
@@ -1381,7 +1409,7 @@ app.addEventListener('click', async (event) => {
   const deleteButton = event.target.closest('[data-delete]');
   if (deleteButton) {
     const transaction = state.transactions.find((item) => item.id === deleteButton.dataset.delete);
-    if (transaction && window.confirm(`Excluir o lancamento "${transaction.title}"?`)) {
+    if (transaction && await confirmDialog(`Excluir o lançamento "${transaction.title}"?`)) {
       try {
         await deleteTransaction(transaction.id);
         showToast(`"${transaction.title}" excluído.`);
@@ -1405,7 +1433,7 @@ app.addEventListener('click', async (event) => {
     const pendingBills = expenses(monthTransactions(state.billsMonth))
       .filter(t => t.status === 'pending');
     if (!pendingBills.length) return;
-    if (!window.confirm(`Marcar ${pendingBills.length} conta(s) como pagas?`)) return;
+    if (!await confirmDialog(`Marcar ${pendingBills.length} conta(s) como pagas?`)) return;
     const btn = event.target.closest('[data-mark-all-paid]');
     btn.disabled = true;
     btn.textContent = 'Salvando...';
