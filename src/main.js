@@ -713,6 +713,22 @@ function newPage() {
           </select>
         </label>
 
+        <!-- Parcelar despesa (conta/débito) -->
+        <label class="field" data-expense-only id="expense-installments-field"><span>Parcelar em</span>
+          <select name="expenseInstallments">
+            <option value="1">À vista</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+            <option value="5">5x</option>
+            <option value="6">6x</option>
+            <option value="10">10x</option>
+            <option value="12">12x</option>
+            <option value="18">18x</option>
+            <option value="24">24x</option>
+          </select>
+        </label>
+
         <!-- Recorrência -->
         <label class="field" id="recurrence-field"><span>Recorrência</span>
           <select name="recurrence">
@@ -776,7 +792,7 @@ function billsPage() {
   const selectedDate = new Date(`${selectedMonth}-01T12:00:00`);
   const prevMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const nextMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
-  const isFuture = nextMonth > currentMonth;
+  // Permite navegar livremente — parcelas futuras devem ser visíveis
 
   // Filtra despesas do mês selecionado
   const bills = expenses(monthTransactions(selectedMonth)).sort((a, b) => a.date.localeCompare(b.date));
@@ -824,7 +840,7 @@ function billsPage() {
   <div class="month-nav">
     <button class="month-nav-btn" data-bills-month="${prevMonth}">← Anterior</button>
     <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
-    <button class="month-nav-btn" data-bills-month="${nextMonth}" ${isFuture ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
+    <button class="month-nav-btn" data-bills-month="${nextMonth}">Próximo →</button>
   </div>
 
   <!-- Resumo do mês -->
@@ -869,7 +885,7 @@ function incomePage() {
   <div class="month-nav">
     <button class="month-nav-btn" data-income-month="${prevMonth}">← Anterior</button>
     <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
-    <button class="month-nav-btn" data-income-month="${nextMonth}" ${isFuture ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
+    <button class="month-nav-btn" data-income-month="${nextMonth}">Próximo →</button>
   </div>
 
   <div class="stats-grid income-stats">
@@ -968,6 +984,37 @@ async function saveCardPurchase(data) {
     installmentCount,
     note: data.get('note').trim(),
   }));
+  await Promise.all(transactions.map(saveTransaction));
+}
+
+// ─── PARCELAS DE DESPESA (conta/débito) ──────────────────────────────────────
+
+async function saveExpenseInstallments(data, count) {
+  const totalCents = Math.round(Number(data.get('amount')) * 100);
+  const baseCents = Math.floor(totalCents / count);
+  const extraCents = totalCents % count;
+  const groupId = crypto.randomUUID();
+  const baseDate = new Date(`${data.get('date')}T12:00:00`);
+
+  const transactions = Array.from({ length: count }, (_, i) => {
+    // Cada parcela vence um mês depois
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+    return {
+      id: crypto.randomUUID(),
+      title: `${data.get('title').trim()} (${i + 1}/${count})`,
+      category: data.get('category'),
+      amount: (baseCents + (i < extraCents ? 1 : 0)) / 100,
+      type: 'expense',
+      date: d.toISOString().slice(0, 10),
+      status: 'pending',
+      account: data.get('account'),
+      note: data.get('note').trim(),
+      paymentMethod: 'account',
+      installmentGroup: groupId,
+      installmentNumber: i + 1,
+      installmentCount: count,
+    };
+  });
   await Promise.all(transactions.map(saveTransaction));
 }
 
@@ -1530,8 +1577,10 @@ app.addEventListener('change', (event) => {
     const usingCard = event.target.value === 'credit';
     const cardFields = document.querySelector('[data-card-fields]');
     if (cardFields) cardFields.hidden = !usingCard;
+    const expenseInstField = document.getElementById('expense-installments-field');
+    if (expenseInstField) expenseInstField.hidden = usingCard; // parcelas de conta só aparecem quando não é cartão
     const dateLabel = document.querySelector('[name="date"]')?.closest('.field')?.querySelector('span');
-    if (dateLabel) dateLabel.textContent = usingCard ? 'Data da compra' : 'Data de vencimento / recebimento';
+    if (dateLabel) dateLabel.textContent = usingCard ? 'Data da compra' : 'Data do 1º vencimento';
   }
 });
 
@@ -1736,10 +1785,22 @@ app.addEventListener('submit', async (event) => {
     // Compra parcelada no cartão
     if (data.get('type') === 'expense' && data.get('paymentMethod') === 'credit') {
       await saveCardPurchase(data);
-      showToast('Compra registrada com parcelas.');
+      showToast('Compra registrada com parcelas no cartão.');
       state.page = 'cards';
       await refresh();
       return;
+    }
+
+    // Despesa parcelada (conta/débito)
+    if (data.get('type') === 'expense' && data.get('paymentMethod') !== 'credit') {
+      const installCount = Math.max(1, Number(data.get('expenseInstallments')) || 1);
+      if (installCount > 1) {
+        await saveExpenseInstallments(data, installCount);
+        showToast(`Despesa registrada em ${installCount}x — aparece em cada mês.`);
+        state.page = 'bills';
+        await refresh();
+        return;
+      }
     }
 
     // Receita parcelada (vendas a receber)
