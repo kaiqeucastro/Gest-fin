@@ -78,7 +78,7 @@ document.documentElement.dataset.theme = localStorage.getItem('gest-fin-theme') 
 const currentMonth = monthKey(today);
 const previousDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 const previousMonth = monthKey(previousDate);
-const categoryColors = ['#123a5a', '#c89452', '#7fa7b8', '#d87760', '#536d82', '#88a392', '#7188a0', '#c2cad0'];
+const categoryColors = ['#1d4ed8', '#0891b2', '#0369a1', '#38bdf8', '#6366f1', '#7c3aed', '#0e7490', '#1e40af'];
 const money = (value) => currency.format(value);
 const safe = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const monthTransactions = (month) => state.transactions.filter((item) => monthKey(new Date(`${item.date}T12:00:00`)) === month);

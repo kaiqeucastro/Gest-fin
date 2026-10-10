@@ -1,7 +1,7 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-:root{font-family:'DM Sans',sans-serif;color:#202b26;background:#f3f4ef;font-synthesis:none;text-rendering:optimizeLegibility;--ink:#202b26;--muted:#7c8580;--line:#e7e9e3;--paper:#fff;--green:#315d4c;--deep:#203f35;--gold:#c89452;--coral:#d87760;--shadow:0 8px 28px rgba(34,48,40,.045)}
-*{box-sizing:border-box}body{margin:0;min-width:360px;min-height:100vh;background-color:#f3f4ef;background-image:linear-gradient(rgba(45,72,56,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(45,72,56,.018) 1px,transparent 1px);background-size:36px 36px}button,input,select,textarea{font:inherit}button{color:inherit;cursor:pointer}
+:root{font-family:'DM Sans',sans-serif;color:#0d1b2a;background:#f0f4f8;font-synthesis:none;text-rendering:optimizeLegibility;--ink:#0d1b2a;--muted:#5a7a96;--line:#d1dce6;--paper:#fff;--green:#2563eb;--deep:#0d1b2a;--gold:#38bdf8;--coral:#ef4444;--shadow:0 8px 28px rgba(13,27,42,.08)}
+*{box-sizing:border-box}body{margin:0;min-width:360px;min-height:100vh;background-color:#f0f4f8;background-image:linear-gradient(rgba(37,99,235,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.025) 1px,transparent 1px);background-size:36px 36px}button,input,select,textarea{font:inherit}button{color:inherit;cursor:pointer}
 .sidebar{width:242px;position:fixed;inset:0 auto 0 0;z-index:5;display:flex;flex-direction:column;background:#fbfcf9;border-right:1px solid #e8ebe5;padding:28px 18px 18px;transition:width .25s,padding .25s}
 .sidebar-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .sidebar-collapse-btn{display:grid;place-items:center;width:26px;height:26px;border:1px solid #e4e8e1;border-radius:5px;background:#f7f9f6;color:#7a847e;flex:0 0 auto;transition:background .15s,color .15s,transform .25s}
