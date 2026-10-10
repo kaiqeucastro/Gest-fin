@@ -69,7 +69,7 @@ const categories = {
   income: ['Salario', 'Freelance', 'Investimentos', 'Vendas', 'Outros'],
 };
 
-const state = { page: 'overview', authScreen: 'login', billsMonth: null, incomeMonth: null, transactions: [], cards: [], user: null };
+const state = { page: 'overview', authScreen: 'login', billsMonth: null, incomeMonth: null, billsFilter: 'all', incomeCategory: 'all', transactions: [], cards: [], user: null };
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
 const monthFormat = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
@@ -454,6 +454,8 @@ function shell(content) {
             <button data-export="csv">Exportar CSV</button>
             <button data-export="json">Exportar JSON</button>
             <hr />
+            <button data-open-settings>⚙ Configuracoes</button>
+            <hr />
             <button class="logout-action" data-logout>Sair da conta</button>
           </div>
         </div>
@@ -523,8 +525,9 @@ function shell(content) {
   </div>`;
 }
 
-function statCard(label, value, note, tone = 'neutral', icon = '-') {
-  return `<article class="stat-card"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><strong class="stat-value">${value}</strong><div class="stat-note ${tone}">${note}</div></article>`;
+function statCard(label, value, note, tone = 'neutral', icon = '-', page = null) {
+  const wrapper = page ? `data-page="${page}" role="button" tabindex="0" title="Ir para ${pageName(page)}"` : '';
+  return `<article class="stat-card${page ? ' stat-card--link' : ''}" ${wrapper}><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><strong class="stat-value">${value}</strong><div class="stat-note ${tone}">${note}</div></article>`;
 }
 
 function monthChart() {
@@ -560,8 +563,51 @@ function categoryBreakdown() {
   return `<div class="category-layout"><div class="donut" style="--donut:${stops.length ? `conic-gradient(${stops.join(',')})` : 'conic-gradient(#dfe4dc 0 100%)'}"><div><strong>${money(spent)}</strong><span>consumido</span></div></div><div class="category-list">${segments || '<p class="empty-note">Sem despesas neste mes.</p>'}</div></div>`;
 }
 
+function categoryPill(cat) {
+  const allCats = [...categories.expense, ...categories.income];
+  const idx = allCats.indexOf(cat);
+  const color = categoryColors[idx >= 0 ? idx % categoryColors.length : 0];
+  return `<span class="category-pill" style="background:${color}22;color:${color};border:1px solid ${color}44">${safe(cat)}</span>`;
+}
+
+function budgetProgressBar() {
+  const budget = Number(localStorage.getItem('monthlyBudget') || 0);
+  if (!budget) return '';
+  const spending = total(expenses(monthTransactions(currentMonth)).filter(t => t.status === 'paid'));
+  const pct = Math.min(100, Math.round(spending / budget * 100));
+  const tone = pct >= 100 ? 'negative' : pct >= 80 ? 'warning' : 'positive';
+  return `<div class="budget-bar-wrap">
+    <div class="budget-bar-header">
+      <span class="eyebrow">META DE GASTOS</span>
+      <span class="budget-bar-values">${money(spending)} <small>de ${money(budget)}</small></span>
+    </div>
+    <div class="budget-track">
+      <div class="budget-fill budget-fill--${tone}" style="width:${pct}%"></div>
+    </div>
+    <span class="budget-pct ${tone}">${pct}% do orçamento mensal utilizado</span>
+  </div>`;
+}
+
+function topCategoriesSummary() {
+  const byCategory = expenses(monthTransactions(currentMonth))
+    .filter(t => t.status === 'paid')
+    .reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + Number(t.amount); return acc; }, {});
+  const top3 = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (!top3.length) return '';
+  return `<div class="top-categories">
+    <span class="eyebrow">TOP CATEGORIAS DO MÊS</span>
+    <div class="top-cat-list">
+      ${top3.map(([cat, val], i) => `<div class="top-cat-row">
+        <span class="top-cat-rank">${i + 1}</span>
+        ${categoryPill(cat)}
+        <span class="top-cat-amount">${money(val)}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 function transactionRows(items, limit = 6) {
-  return [...items].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit).map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td><span class="category-pill">${safe(item.category)}</span></td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Pago' : 'Pendente'}</span></td><td class="amount ${item.type}">${item.type === 'income' ? '+' : '-'} ${money(item.amount)}</td></tr>`).join('');
+  return [...items].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit).map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td>${categoryPill(item.category)}</td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Pago' : 'Pendente'}</span></td><td class="amount ${item.type}">${item.type === 'income' ? '+' : '-'} ${money(item.amount)}</td></tr>`).join('');
 }
 
 function upcomingBills(limit = 4) {
@@ -592,12 +638,13 @@ function overviewPage() {
   <div class="section-heading"><div><span class="eyebrow">RESUMO DO PERIODO</span><h2>Visao geral</h2></div><button class="text-button" data-page="reports">Ver relatorios <span>-</span></button></div>
   <div class="stats-grid">
     ${statCard('Saldo disponivel', money(balance), pendingExpense > 0 ? `<span class="down">- ${money(pendingExpense)} pendente</span>` : '<span class="up">Apenas valores pagos</span>', balance >= 0 ? 'positive' : 'negative', 'R$')}
-    ${statCard('Despesas pagas', money(spending), `${variance > 0 ? '<span class="down">+' : '<span class="up">'}${Math.abs(variance)}%</span> vs. mes anterior`, variance > 0 ? 'negative' : 'positive', '-')}
-    ${statCard('Receitas recebidas', money(received), pendingIncome > 0 ? `<span class="neutral-tag">+ ${money(pendingIncome)} a receber</span>` : `<span class="up">${paidIncomes.length} entradas pagas</span>`, 'positive', '+')}
-    ${statCard('Contas em aberto', String(dueSoon).padStart(2, '0'), '<span class="neutral-tag">Proximos vencimentos</span>', 'neutral', '-')}
+    ${statCard('Despesas pagas', money(spending), `${variance > 0 ? '<span class="down">+' : '<span class="up">'}${Math.abs(variance)}%</span> vs. mes anterior`, variance > 0 ? 'negative' : 'positive', '-', 'bills')}
+    ${statCard('Receitas recebidas', money(received), pendingIncome > 0 ? `<span class="neutral-tag">+ ${money(pendingIncome)} a receber</span>` : `<span class="up">${paidIncomes.length} entradas pagas</span>`, 'positive', '+', 'income')}
+    ${statCard('Contas em aberto', String(dueSoon).padStart(2, '0'), '<span class="neutral-tag">Proximos vencimentos</span>', 'neutral', '-', 'bills')}
   </div>
+  ${budgetProgressBar()}
   <div class="dashboard-grid">
-    <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">FLUXO DE CAIXA</span><h3>Entradas e saidas</h3></div></div>${monthChart()}</section>
+    <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">FLUXO DE CAIXA</span><h3>Entradas e saidas</h3></div></div>${monthChart()}${topCategoriesSummary()}</section>
     <section class="panel category-panel"><div class="panel-heading"><div><span class="eyebrow">ONDE SEU DINHEIRO VAI</span><h3>Consumo por categoria</h3></div></div>${categoryBreakdown()}</section>
   </div>
   <div class="dashboard-grid lower-grid">
@@ -607,8 +654,16 @@ function overviewPage() {
 }
 
 function billRows(items, compact = false) {
-  if (!items.length) return '<div class="empty-state small-empty"><span class="empty-check">-</span><strong>Tudo em dia</strong><p>Nenhuma conta pendente por aqui.</p></div>';
-  return items.map((item) => `<article class="bill-row" data-transaction-id="${safe(item.id)}"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="bill-info"><strong>${safe(item.title)}</strong><small>${safe(item.category)} - ${safe(item.account || 'Conta principal')}</small></div><div class="bill-value"><strong>${money(item.amount)}</strong><small>${item.status === 'paid' ? 'Pago' : 'A vencer'}</small></div>${compact ? '' : `<div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : '<span class="status paid"><i></i>Pago</span>'}<button class="edit-action" data-edit="${safe(item.id)}" aria-label="Editar ${safe(item.title)}" title="Editar">✎</button><button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir lancamento">-</button></div>`}</article>`).join('');
+  if (!items.length) return '<div class="empty-state small-empty"><span class="empty-check">✓</span><strong>Você está em dia!</strong><p>Nenhuma conta registrada para este período.</p></div>';
+  function dueBadge(dateStr) {
+    const due = new Date(`${dateStr}T12:00:00`);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diff = Math.round((due - todayStart) / 86400000);
+    if (diff === 0) return `<span class="due-badge due-badge--today">Vence hoje</span>`;
+    if (diff > 0) return `<span class="due-badge due-badge--soon">Vence em ${diff} dia${diff !== 1 ? 's' : ''}</span>`;
+    return `<span class="due-badge due-badge--overdue">Venceu há ${Math.abs(diff)} dia${Math.abs(diff) !== 1 ? 's' : ''}</span>`;
+  }
+  return items.map((item) => `<article class="bill-row" data-transaction-id="${safe(item.id)}"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="bill-info"><strong>${safe(item.title)}</strong><small>${safe(item.category)} - ${safe(item.account || 'Conta principal')}</small>${item.status === 'pending' ? dueBadge(item.date) : ''}</div><div class="bill-value"><strong>${money(item.amount)}</strong><small>${item.status === 'paid' ? 'Pago' : 'A vencer'}</small></div>${compact ? '' : `<div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : '<span class="status paid"><i></i>Pago</span>'}<button class="edit-action" data-edit="${safe(item.id)}" aria-label="Editar ${safe(item.title)}" title="Editar">✎</button><button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir lancamento">-</button></div>`}</article>`).join('');
 }
 
 function newPage() {
@@ -631,11 +686,11 @@ function newPage() {
         <!-- Valor -->
         <label class="field"><span>Valor total</span><div class="currency-input"><b>R$</b><input name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00" /></div></label>
 
-        <!-- Categoria -->
-        <label class="field"><span>Categoria</span><select name="category" required>${categories.expense.map(c => `<option>${c}</option>`).join('')}</select></label>
-
         <!-- Data -->
         <label class="field"><span>Data de vencimento / recebimento</span><input name="date" type="date" value="${isoDate(today.getDate())}" required /></label>
+
+        <!-- Categoria -->
+        <label class="field"><span>Categoria</span><select name="category" required>${categories.expense.map(c => `<option>${c}</option>`).join('')}</select></label>
 
         <!-- Conta -->
         <label class="field"><span>Conta</span><select name="account">
@@ -732,7 +787,12 @@ function billsPage() {
   const totalPaid = total(paid);
 
   // Agrupa por semana dentro do mês
-  const grouped = bills.reduce((acc, item) => {
+  const filterState = state.billsFilter || 'all';
+  const filteredBills = filterState === 'pending' ? pending
+    : filterState === 'paid' ? paid
+    : bills;
+
+  const grouped = filteredBills.reduce((acc, item) => {
     const d = new Date(`${item.date}T12:00:00`);
     const week = Math.ceil(d.getDate() / 7);
     const label = `Semana ${week}`;
@@ -754,7 +814,10 @@ function billsPage() {
   return `${imageBanner('Antecipe seus<br />compromissos.', 'Vencimentos organizados para voce manter o controle e a tranquilidade.', 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=1500&q=85', 'AGENDA / CONTAS A PAGAR')}
   <div class="section-heading">
     <div><span class="eyebrow">${pending.length} PENDENTES</span><h2>Contas a pagar</h2></div>
-    <button class="primary-button" data-page="new">+ Novo lancamento</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${pending.length ? `<button class="settle-button" data-mark-all-paid>✓ Marcar todas como pagas</button>` : ''}
+      <button class="primary-button" data-page="new">+ Novo lancamento</button>
+    </div>
   </div>
 
   <!-- Navegação de mês -->
@@ -771,6 +834,13 @@ function billsPage() {
     ${statCard('Total do mês', money(total(bills)), `${bills.length} lançamento${bills.length !== 1 ? 's' : ''}`, 'neutral', '#')}
   </div>
 
+  <!-- Filtro por status -->
+  <div class="filter-bar">
+    <button class="filter-btn ${filterState === 'all' ? 'active' : ''}" data-bills-filter="all">Todos (${bills.length})</button>
+    <button class="filter-btn ${filterState === 'pending' ? 'active' : ''}" data-bills-filter="pending">Pendentes (${pending.length})</button>
+    <button class="filter-btn ${filterState === 'paid' ? 'active' : ''}" data-bills-filter="paid">Pagos (${paid.length})</button>
+  </div>
+
   <section class="panel bills-panel">
     <div class="list-head"><span>VENCIMENTO / DESCRICAO</span><span>VALOR</span><span>ACAO</span></div>
     <div class="due-list full-list bills-grouped">${groupedHTML}</div>
@@ -783,12 +853,15 @@ function incomePage() {
   const prevMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const nextMonth = monthKey(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
-  const isFutureIncome = nextMonth > currentMonth;
+  const isFuture = nextMonth > currentMonth;
 
   const records = incomes(monthTransactions(selectedMonth)).sort((a, b) => b.date.localeCompare(a.date));
   const paidRecords = records.filter(t => t.status === 'paid');
   const pendingRecords = records.filter(t => t.status === 'pending');
   const thisMonth = total(paidRecords);
+
+  const catFilter = state.incomeCategory || 'all';
+  const displayRecords = catFilter === 'all' ? records : records.filter(t => t.category === catFilter);
 
   return `${imageBanner('Receita bem cuidada<br />vira possibilidade.', 'Acompanhe entradas confirmadas e valores previstos para o periodo.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'FLUXO DE CAIXA / RECEITAS')}
 
@@ -796,13 +869,19 @@ function incomePage() {
   <div class="month-nav">
     <button class="month-nav-btn" data-income-month="${prevMonth}">← Anterior</button>
     <span class="month-nav-label">${monthFormat.format(selectedDate)}</span>
-    <button class="month-nav-btn" data-income-month="${nextMonth}" ${isFutureIncome ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
+    <button class="month-nav-btn" data-income-month="${nextMonth}" ${isFuture ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>Próximo →</button>
   </div>
 
   <div class="stats-grid income-stats">
     ${statCard('Recebido no mes', money(thisMonth), `<span class="up">${paidRecords.length} entrada${paidRecords.length !== 1 ? 's' : ''} confirmada${paidRecords.length !== 1 ? 's' : ''}</span>`, 'positive', '+')}
     ${statCard('A receber', money(total(pendingRecords)), `<span class="neutral-tag">${pendingRecords.length} previsto${pendingRecords.length !== 1 ? 's' : ''}</span>`, 'neutral', '-')}
     ${statCard('Total do mes', money(total(records)), `${records.length} lançamento${records.length !== 1 ? 's' : ''}`, 'neutral', '#')}
+  </div>
+
+  <!-- Filtro por categoria -->
+  <div class="filter-bar">
+    <button class="filter-btn ${catFilter === 'all' ? 'active' : ''}" data-income-cat="all">Todas</button>
+    ${categories.income.map(c => `<button class="filter-btn ${catFilter === c ? 'active' : ''}" data-income-cat="${safe(c)}">${safe(c)}</button>`).join('')}
   </div>
 
   <section class="panel table-panel income-table">
@@ -813,7 +892,7 @@ function incomePage() {
     <div class="table-wrap">
       <table>
         <thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead>
-        <tbody>${records.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td><span class="category-pill">${safe(item.category)}</span></td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita neste mês.</td></tr>'}</tbody>
+        <tbody>${displayRecords.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td>${categoryPill(item.category)}</td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita registrada. Clique em \'+ Nova receita\' para começar.</td></tr>'}</tbody>
       </table>
     </div>
   </section>`;
@@ -848,15 +927,19 @@ function cardsPage() {
     const installmentLabel = item.installmentCount > 1 ? `Parcela ${item.installmentNumber} de ${item.installmentCount}` : 'À vista';
     return `<article class="installment-row"><div class="bill-date"><strong>${new Date(`${item.date}T12:00:00`).getDate()}</strong><span>${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '')}</span></div><div class="installment-info"><strong>${safe(item.title)}</strong><small>${safe(card?.name || 'Cartão removido')} · ${installmentLabel}</small></div><div class="installment-value"><strong>${money(item.amount)}</strong><small class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Pago' : 'Em aberto'}</small></div><div class="bill-actions">${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}">Marcar pago</button>` : ''}<button class="edit-action" data-edit="${safe(item.id)}" title="Editar">✎</button><button class="delete-action" data-delete="${safe(item.id)}" aria-label="Excluir ${safe(item.title)}" title="Excluir compra">-</button></div></article>`;
   }).join('');
-  return `${imageBanner('Cartões sob controle.<br />Parcelas sem surpresa.', 'Acompanhe faturas, limite comprometido e vencimentos de cada compra.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'CRÉDITO / CARTÕES')}<div class="section-heading"><div><span class="eyebrow">CARTEIRA DE CRÉDITO</span><h2>Cartões</h2></div><button class="primary-button" data-toggle-card-form>+ Adicionar cartão</button></div><form id="card-form" class="panel card-form" hidden><div class="panel-heading"><div><span class="eyebrow">NOVO MEIO DE PAGAMENTO</span><h3>Cadastrar cartão</h3></div></div><div class="form-grid"><label class="field"><span>Nome do cartão</span><input name="cardName" maxlength="40" placeholder="Ex.: Cartão principal" required /></label><label class="field"><span>Emissor</span><input name="issuer" maxlength="30" placeholder="Ex.: Banco Horizonte" required /></label><label class="field"><span>Quatro últimos dígitos</span><input name="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="1234" required /></label><label class="field"><span>Limite total</span><input name="limit" type="number" min="1" step="0.01" placeholder="10000" required /></label><label class="field"><span>Dia de fechamento</span><input name="closingDay" type="number" min="1" max="28" value="20" required /></label><label class="field"><span>Dia do vencimento</span><input name="dueDay" type="number" min="1" max="28" value="5" required /></label></div><div class="form-footer"><span>Datas de fechamento e vencimento usadas para projetar as parcelas.</span><button class="primary-button" type="submit">Salvar cartão</button></div></form><div class="credit-card-grid">${cards || '<div class="panel empty-note">Cadastre um cartão para controlar suas compras.</div>'}</div><section class="panel installments-panel"><div class="panel-heading"><div><span class="eyebrow">FATURAS FUTURAS</span><h3>Compras e parcelas</h3></div><span class="period-label">${installments.length} lançamentos</span></div><div class="installment-list">${installmentRows || '<div class="empty-state small-empty"><span class="empty-check">-</span><strong>Nenhuma compra no crédito</strong><p>Selecione cartão de crédito ao criar um lançamento.</p></div>'}</div></section>`;
+  return `${imageBanner('Cartões sob controle.<br />Parcelas sem surpresa.', 'Acompanhe faturas, limite comprometido e vencimentos de cada compra.', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1500&q=85', 'CRÉDITO / CARTÕES')}<div class="section-heading"><div><span class="eyebrow">CARTEIRA DE CRÉDITO</span><h2>Cartões</h2></div><button class="primary-button" data-toggle-card-form>+ Adicionar cartão</button></div><form id="card-form" class="panel card-form" hidden><div class="panel-heading"><div><span class="eyebrow">NOVO MEIO DE PAGAMENTO</span><h3>Cadastrar cartão</h3></div></div><div class="form-grid"><label class="field"><span>Nome do cartão</span><input name="cardName" maxlength="40" placeholder="Ex.: Cartão principal" required /></label><label class="field"><span>Emissor</span><input name="issuer" maxlength="30" placeholder="Ex.: Banco Horizonte" required /></label><label class="field"><span>Quatro últimos dígitos</span><input name="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="1234" required /></label><label class="field"><span>Limite total</span><input name="limit" type="number" min="1" step="0.01" placeholder="10000" required /></label><label class="field"><span>Dia de fechamento</span><input name="closingDay" type="number" min="1" max="28" value="20" required /></label><label class="field"><span>Dia do vencimento</span><input name="dueDay" type="number" min="1" max="28" value="5" required /></label></div><div class="form-footer"><span>Datas de fechamento e vencimento usadas para projetar as parcelas.</span><button class="primary-button" type="submit">Salvar cartão</button></div></form><div class="credit-card-grid">${cards || '<div class="panel empty-state"><span class="empty-check">+</span><strong>Nenhum cartão cadastrado ainda</strong><p>Clique em \'+ Adicionar cartão\' acima para começar a controlar suas faturas.</p></div>'}</div><section class="panel installments-panel"><div class="panel-heading"><div><span class="eyebrow">FATURAS FUTURAS</span><h3>Compras e parcelas</h3></div><span class="period-label">${installments.length} lançamentos</span></div><div class="installment-list">${installmentRows || '<div class="empty-state small-empty"><span class="empty-check">-</span><strong>Nenhuma compra no crédito</strong><p>Nenhuma compra no crédito ainda. Ao registrar um lançamento com pagamento em cartão, ele aparecerá aqui com o controle de parcelas.</p></div>'}</div></section>`;
 }
 
 function enhanceTransactionForm() {
   const form = app.querySelector('#transaction-form');
   if (!form) return;
-  const isExpense = form.querySelector('[name="type"]:checked').value === 'expense';
-  form.querySelector('[data-expense-only]').hidden = !isExpense;
-  form.querySelector('[data-income-installments]').hidden = isExpense;
+  const typeInput = form.querySelector('[name="type"]:checked');
+  if (!typeInput) return;
+  const isExpense = typeInput.value === 'expense';
+  const expOnly = form.querySelector('[data-expense-only]');
+  const incomeInst = form.querySelector('[data-income-installments]');
+  if (expOnly) expOnly.hidden = !isExpense;
+  if (incomeInst) incomeInst.hidden = isExpense;
 }
 
 async function saveCardPurchase(data) {
@@ -1051,6 +1134,40 @@ function closeModal() {
   document.getElementById('edit-modal')?.remove();
 }
 
+function openSettingsModal() {
+  closeModal();
+  const budget = localStorage.getItem('monthlyBudget') || '';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'edit-modal';
+  modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Configurações</h3>
+        <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+      </div>
+      <form id="settings-form" class="modal-form">
+        <div class="form-grid">
+          <label class="field field-wide">
+            <span>Orçamento mensal de gastos</span>
+            <div class="currency-input"><b>R$</b>
+              <input name="monthlyBudget" type="number" min="0" step="0.01" value="${safe(budget)}" placeholder="Ex.: 3000" />
+            </div>
+            <small>Usado para a barra de progresso no painel principal.</small>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-cancel" id="modal-close-btn">Cancelar</button>
+          <button type="submit" class="primary-button">Salvar</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('#modal-close') || e.target.closest('#modal-close-btn')) closeModal();
+  });
+}
+
 function addNavigationIcons() {
   createIcons({ icons: { LayoutDashboard, CirclePlus, CalendarDays, WalletCards, ChartNoAxesCombined, CreditCard }, attrs: { 'stroke-width': 1.8 } });
 }
@@ -1210,6 +1327,12 @@ app.addEventListener('click', async (event) => {
     document.querySelector('[data-account-menu]').setAttribute('aria-expanded', 'false');
     return;
   }
+  if (event.target.closest('[data-open-settings]')) {
+    openSettingsModal();
+    const menu = document.querySelector('.account-menu');
+    if (menu) menu.hidden = true;
+    return;
+  }
   if (event.target.closest('[data-logout]')) {
     clearToken();
     state.user = null;
@@ -1269,16 +1392,61 @@ app.addEventListener('click', async (event) => {
     }
     return;
   }
+  // ── Filtro de status (bills) ──
+  const billsFilterBtn = event.target.closest('[data-bills-filter]');
+  if (billsFilterBtn) { state.billsFilter = billsFilterBtn.dataset.billsFilter; render(); return; }
+
+  // ── Filtro de categoria (income) ──
+  const incomeCatBtn = event.target.closest('[data-income-cat]');
+  if (incomeCatBtn) { state.incomeCategory = incomeCatBtn.dataset.incomeCat; render(); return; }
+
+  // ── Marcar todas como pagas ──
+  if (event.target.closest('[data-mark-all-paid]')) {
+    const pendingBills = expenses(monthTransactions(state.billsMonth))
+      .filter(t => t.status === 'pending');
+    if (!pendingBills.length) return;
+    if (!window.confirm(`Marcar ${pendingBills.length} conta(s) como pagas?`)) return;
+    const btn = event.target.closest('[data-mark-all-paid]');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+    try {
+      await Promise.all(pendingBills.map(t => saveTransaction({ ...t, status: 'paid' })));
+      showToast(`${pendingBills.length} conta(s) marcadas como pagas.`);
+      await refresh();
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.disabled = false;
+    }
+    return;
+  }
+
   const pageButton = event.target.closest('[data-page]');
   if (pageButton) {
-    state.page = pageButton.dataset.page;
+    const targetPage = pageButton.dataset.page;
+    const txId = pageButton.dataset.transactionId;
+    state.page = targetPage;
+    // Reset filtros ao sair das páginas
+    if (targetPage !== 'bills') { state.billsFilter = 'all'; state.billsMonth = currentMonth; }
+    if (targetPage !== 'income') { state.incomeCategory = 'all'; state.incomeMonth = currentMonth; }
     // Fecha drawer mobile ao navegar
     document.getElementById('mobile-drawer')?.classList.remove('open');
     document.getElementById('mobile-overlay')?.classList.remove('open');
     document.getElementById('hamburger-btn')?.classList.remove('open');
     document.body.style.overflow = '';
+    // Fecha search panel
+    document.getElementById('search-panel')?.setAttribute('hidden', '');
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (txId) {
+      setTimeout(() => {
+        const el = document.querySelector(`[data-transaction-id="${txId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('highlight-row');
+          setTimeout(() => el.classList.remove('highlight-row'), 1800);
+        }
+      }, 200);
+    }
   }
   const paidButton = event.target.closest('[data-paid]');
   if (paidButton) await markPaid(paidButton.dataset.paid);
@@ -1307,7 +1475,7 @@ app.addEventListener('input', (event) => {
   }
 
   results.innerHTML = matches.map(t => `
-    <button class="search-result-item" data-page="${t.type === 'income' ? 'income' : 'bills'}">
+    <button class="search-result-item" data-page="${t.type === 'income' ? 'income' : 'bills'}" data-transaction-id="${safe(t.id)}">
       <div class="search-result-info">
         <strong>${safe(t.title)}</strong>
         <small>${safe(t.category)} · ${new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'short' }).format(new Date(t.date + 'T12:00:00'))}</small>
@@ -1340,6 +1508,18 @@ app.addEventListener('change', (event) => {
 });
 
 app.addEventListener('submit', async (event) => {
+  // ── Configurações ──
+  if (event.target.id === 'settings-form') {
+    event.preventDefault();
+    const budget = new FormData(event.target).get('monthlyBudget');
+    if (budget) localStorage.setItem('monthlyBudget', budget);
+    else localStorage.removeItem('monthlyBudget');
+    showToast('Configurações salvas.');
+    closeModal();
+    if (state.page === 'overview') render();
+    return;
+  }
+
   // ── Editar lançamento ──
   if (event.target.id === 'edit-transaction-form') {
     event.preventDefault();

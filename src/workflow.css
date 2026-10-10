@@ -336,3 +336,70 @@
 
 :root[data-theme="dark"] .gest-toast{background:#1a3020;color:#c8e8d0}
 :root[data-theme="dark"] .gest-toast--error{background:#3b1010;color:#fca5a5}
+
+/* ── Budget progress bar ── */
+.budget-bar-wrap{margin:12px 0 14px;padding:14px 18px;border:1px solid #e4e8e1;border-radius:6px;background:#fff}
+.budget-bar-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.budget-bar-values{color:#334653;font-size:11px;font-weight:700}
+.budget-bar-values small{color:#8a948e;font-weight:400;font-size:9px}
+.budget-track{height:8px;border-radius:8px;background:#edf0ec;overflow:hidden}
+.budget-fill{height:100%;border-radius:inherit;transition:width .4s}
+.budget-fill--positive{background:var(--green)}
+.budget-fill--warning{background:var(--gold)}
+.budget-fill--negative{background:var(--coral)}
+.budget-pct{display:block;margin-top:7px;font-size:9px}
+:root[data-theme="dark"] .budget-bar-wrap{background:#0e1f18;border-color:#1e3428}
+:root[data-theme="dark"] .budget-bar-values{color:#c8d8cc}
+:root[data-theme="dark"] .budget-track{background:#1a2f22}
+
+/* ── Top categories summary ── */
+.top-categories{margin-top:16px;padding-top:14px;border-top:1px solid #f0f2ed}
+.top-cat-list{display:grid;gap:8px;margin-top:10px}
+.top-cat-row{display:flex;align-items:center;gap:10px}
+.top-cat-rank{width:16px;color:#9aa49e;font-size:9px;font-weight:700;flex-shrink:0}
+.top-cat-amount{margin-left:auto;color:#334653;font-size:10px;font-weight:700}
+:root[data-theme="dark"] .top-categories{border-color:#1e3428}
+:root[data-theme="dark"] .top-cat-rank{color:#5a7a68}
+:root[data-theme="dark"] .top-cat-amount{color:#c8d8cc}
+
+/* ── Filter bar ── */
+.filter-bar{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.filter-btn{padding:6px 12px;border:1px solid #e0e4de;border-radius:20px;background:#f7f9f6;color:#5a6660;font-size:9px;font-weight:700;transition:background .12s,border-color .12s}
+.filter-btn:hover{background:#eef1ec;border-color:#c8d4c9}
+.filter-btn.active{background:var(--green);border-color:var(--green);color:#fff}
+:root[data-theme="dark"] .filter-bar .filter-btn{background:#142618;border-color:#2b3f32;color:#8aaa96}
+:root[data-theme="dark"] .filter-bar .filter-btn.active{background:var(--green);border-color:var(--green);color:#fff}
+
+/* ── Due date badge ── */
+.due-badge{display:inline-block;margin-top:3px;padding:2px 6px;border-radius:3px;font-size:7px;font-weight:700}
+.due-badge--today{background:#fff3cd;color:#856404}
+.due-badge--soon{background:#e8f5e9;color:#2e7d32}
+.due-badge--overdue{background:#fdecea;color:#c62828}
+:root[data-theme="dark"] .due-badge--today{background:#3d2c00;color:#f0c967}
+:root[data-theme="dark"] .due-badge--soon{background:#1a3428;color:#6aaa82}
+:root[data-theme="dark"] .due-badge--overdue{background:#3b1010;color:#fca5a5}
+
+/* ── Highlight row on search navigation ── */
+.highlight-row{animation:row-highlight 1.8s ease forwards}
+@keyframes row-highlight{0%{background:rgba(49,93,76,.18)}100%{background:transparent}}
+
+/* ── Modal 360px responsive ── */
+@media(max-width:400px){
+  .modal{max-width:100%;border-radius:0 0 8px 8px}
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal-form{padding:14px 14px 18px}
+  .modal-header{padding:14px 16px 12px}
+  .modal .form-grid{grid-template-columns:1fr}
+}
+
+/* ── Bills stats 2 col on mobile ── */
+@media(max-width:480px){
+  .bills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bills-stats .stat-card:last-child{grid-column:1/-1}
+}
+
+/* ── Filter bar mobile ── */
+@media(max-width:680px){
+  .filter-bar{gap:4px}
+  .filter-btn{font-size:8px;padding:5px 9px}
+}
