@@ -1564,10 +1564,12 @@ app.addEventListener('change', (event) => {
   if (event.target.name === 'type') {
     document.querySelector('[name="category"]').innerHTML = categories[event.target.value].map((item) => `<option>${safe(item)}</option>`).join('');
     const isExpense = event.target.value === 'expense';
-    const expenseOnly = document.querySelector('[data-expense-only]');
+    // Mostrar/ocultar todos os campos exclusivos de despesa
+    document.querySelectorAll('[data-expense-only]').forEach(el => el.hidden = !isExpense);
+    // Mostrar/ocultar campos de parcela de receita
     const incomeInstallments = document.querySelector('[data-income-installments]');
-    if (expenseOnly) expenseOnly.hidden = !isExpense;
     if (incomeInstallments) incomeInstallments.hidden = isExpense;
+    // Ocultar campos de cartão se mudou para receita
     if (!isExpense) {
       const cardFields = document.querySelector('[data-card-fields]');
       if (cardFields) cardFields.hidden = true;
