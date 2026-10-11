@@ -1280,10 +1280,20 @@ function render() {
   if (state.page === 'new') enhanceTransactionForm();
   addNavigationIcons();
   app.querySelectorAll('table').forEach((table) => {
+    // Pula tabelas que já têm coluna ACAO embutida (ex: income-table)
+    if (table.querySelector('th[data-acao-built]') || table.closest('.income-table')) return;
     const rows = table.querySelectorAll('tbody tr[data-transaction-id]');
     if (!rows.length) return;
-    table.querySelector('thead tr')?.insertAdjacentHTML('beforeend', '<th class="align-right">ACAO</th>');
+    const headerRow = table.querySelector('thead tr');
+    if (!headerRow) return;
+    const th = document.createElement('th');
+    th.className = 'align-right';
+    th.dataset.acaoBuilt = '1';
+    th.textContent = 'ACAO';
+    headerRow.appendChild(th);
     rows.forEach((row) => {
+      // Pula linhas que já têm td com botões
+      if (row.querySelector('.edit-action, .delete-action')) return;
       const transaction = state.transactions.find((item) => item.id === row.dataset.transactionId);
       row.insertAdjacentHTML('beforeend', `<td class="table-action">
         <button class="edit-action" data-edit="${safe(row.dataset.transactionId)}" aria-label="Editar ${safe(transaction?.title || 'lancamento')}" title="Editar">✎</button>
