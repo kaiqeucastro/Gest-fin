@@ -903,12 +903,26 @@ function incomePage() {
   <section class="panel table-panel income-table">
     <div class="panel-heading">
       <div><span class="eyebrow">EXTRATO — ${monthFormat.format(selectedDate).toUpperCase()}</span><h3>Receitas do mês</h3></div>
-      <button class="primary-button" data-page="new">+ Nova receita</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${pendingRecords.length ? `<button class="settle-button" data-mark-all-received>✓ Marcar todas recebidas</button>` : ''}
+        <button class="primary-button" data-page="new">+ Nova receita</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th></tr></thead>
-        <tbody>${displayRecords.map((item) => `<tr data-transaction-id="${safe(item.id)}"><td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td><td>${categoryPill(item.category)}</td><td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td><td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td><td class="amount income">+ ${money(item.amount)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Nenhuma receita registrada. Clique em \'+ Nova receita\' para começar.</td></tr>'}</tbody>
+        <thead><tr><th>DESCRICAO</th><th>ORIGEM</th><th>DATA</th><th>STATUS</th><th class="align-right">VALOR</th><th class="align-right">ACAO</th></tr></thead>
+        <tbody>${displayRecords.map((item) => `<tr data-transaction-id="${safe(item.id)}">
+          <td><span class="table-title">${safe(item.title)}</span><small>${safe(item.account || 'Conta principal')}</small></td>
+          <td>${categoryPill(item.category)}</td>
+          <td>${dateFormat.format(new Date(`${item.date}T12:00:00`))}</td>
+          <td><span class="status ${item.status}"><i></i>${item.status === 'paid' ? 'Recebido' : 'Previsto'}</span></td>
+          <td class="amount income">+ ${money(item.amount)}</td>
+          <td class="table-action">
+            ${item.status === 'pending' ? `<button class="settle-button" data-paid="${safe(item.id)}" title="Marcar como recebido">✓ Recebido</button>` : '<span class="status paid" style="font-size:9px"><i></i>Recebido</span>'}
+            <button class="edit-action" data-edit="${safe(item.id)}" title="Editar">✎</button>
+            <button class="delete-action" data-delete="${safe(item.id)}" title="Excluir">-</button>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="6" class="empty-note">Nenhuma receita registrada. Clique em \'+ Nova receita\' para começar.</td></tr>'}</tbody>
       </table>
     </div>
   </section>`;
@@ -1475,7 +1489,27 @@ app.addEventListener('click', async (event) => {
   const incomeCatBtn = event.target.closest('[data-income-cat]');
   if (incomeCatBtn) { state.incomeCategory = incomeCatBtn.dataset.incomeCat; render(); return; }
 
-  // ── Marcar todas como pagas ──
+  // ── Marcar todas as receitas como recebidas ──
+  if (event.target.closest('[data-mark-all-received]')) {
+    const pendingIncomes = incomes(monthTransactions(state.incomeMonth))
+      .filter(t => t.status === 'pending');
+    if (!pendingIncomes.length) return;
+    if (!await confirmDialog(`Marcar ${pendingIncomes.length} receita(s) como recebidas?`)) return;
+    const btn = event.target.closest('[data-mark-all-received]');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+    try {
+      await Promise.all(pendingIncomes.map(t => saveTransaction({ ...t, status: 'paid' })));
+      showToast(`${pendingIncomes.length} receita(s) marcadas como recebidas.`);
+      await refresh();
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.disabled = false;
+    }
+    return;
+  }
+
+  // ── Marcar todas as contas como pagas ──
   if (event.target.closest('[data-mark-all-paid]')) {
     const pendingBills = expenses(monthTransactions(state.billsMonth))
       .filter(t => t.status === 'pending');
